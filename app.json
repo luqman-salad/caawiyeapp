@@ -17,7 +17,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.luqman01.caawiye"
     },
     "web": {
       "output": "static",
@@ -34,11 +38,31 @@
             "imageWidth": 76
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you upload proof of task completion.",
+          "colors": {
+            "cropToolbarColor": "#00b047"
+          },
+          "dark": {
+            "colors": {
+              "cropToolbarColor": "#00b047"
+            }
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c652553f-93ce-4641-869a-3f185293a5a6"
+      }
     }
   }
 }
