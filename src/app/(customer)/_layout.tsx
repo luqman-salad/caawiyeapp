@@ -26,6 +26,13 @@ export default function CustomerLayout() {
           title: "Work Progress"
         }} 
       />
+      <Stack.Screen 
+        name="profile"
+        options={{
+          title: "Profile",
+          headerShown: false
+        }} 
+      />
     </Stack>
   );
 }

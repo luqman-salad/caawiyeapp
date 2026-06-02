@@ -8,11 +8,12 @@ import {
   StatusBar,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useRouter } from 'expo-router'; // Template routing system hook
+import { useRouter } from 'expo-router';
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -125,11 +126,8 @@ export default function CustomerHomeScreen() {
           text: "Yes, Report",
           style: "destructive",
           onPress: () => {
-            // 1. Close out the active sheet transition layout context
             bottomSheetModalRef.current?.dismiss();
-            
-            // 2. Redirect to the tracking status viewport layout screen mapping
-            router.push('/(customer)/tracking'); // Adjust route destination mapping paths as necessary
+            router.push('/(customer)/tracking');
           }
         }
       ],
@@ -158,32 +156,53 @@ export default function CustomerHomeScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
         <SafeAreaView style={styles.container} edges={['top']}>
-          <StatusBar barStyle="light-content" backgroundColor="#0b1e33" />
+          <StatusBar barStyle="light-content" backgroundColor="#001a3d" />
 
           {/* PREMIUM BRANDED HEADER */}
           <View style={styles.header}>
             <View style={styles.userInfoRow}>
-              <View style={styles.avatarContainer}>
+              {/* INTERACTIVE AVATAR TO PROFILE LINK */}
+              <TouchableOpacity 
+                style={styles.avatarContainer} 
+                activeOpacity={0.8}
+                onPress={() => router.push('/(customer)/profile')}
+              >
                 <Feather name="user" size={18} color="#ffffff" />
-              </View>
+                <View style={styles.avatarEditIndicator}>
+                  <Feather name="settings" size={8} color="#ffffff" />
+                </View>
+              </TouchableOpacity>
               <View>
                 <Text style={styles.headerGreeting}>Hello, Subscriber</Text>
                 <Text style={styles.headerSubtitle}>Welcome back to Caawiye</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.notificationButton} activeOpacity={0.7}
-              onPress={() => router.push('/(customer)/notifications')}
-            >
-              <Feather name="bell" size={20} color="#ffffff" />
-              <View style={styles.notificationBadge} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity 
+                style={styles.headerIconButton} 
+                activeOpacity={0.7}
+                onPress={() => router.push('/(customer)/profile')}
+                
+              >
+                <Feather name="sliders" size={18} color="#ffffff" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.headerIconButton} 
+                activeOpacity={0.7}
+                onPress={() => router.push('/(customer)/notifications')}
+              >
+                <Feather name="bell" size={18} color="#ffffff" />
+                <View style={styles.notificationBadge} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00b047" />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />
             }
           >
             {/* BROADBAND PLAN CARD */}
@@ -192,33 +211,33 @@ export default function CustomerHomeScreen() {
                 <View style={styles.cardHeaderRow}>
                   <View style={styles.statusBadge}>
                     <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>Active</Text>
+                    <Text style={styles.statusText}>Active Connection</Text>
                   </View>
                   <View style={styles.wifiIconCircle}>
-                    <Feather name="wifi" size={20} color="#00b047" />
+                    <Feather name="wifi" size={18} color="#10b981" />
                   </View>
                 </View>
 
-                <Text style={styles.planTitle}>{activePlan.type} Broadband</Text>
-                <Text style={styles.accountNumber}>Account #{activePlan.accountNo}</Text>
+                <Text style={styles.planTitle}>{activePlan.type}</Text>
+                <Text style={styles.accountNumber}>Account ID: {activePlan.accountNo}</Text>
 
                 <View style={styles.cardDivider} />
 
                 <View style={styles.planDetailsGrid}>
                   <View style={styles.detailColumn}>
-                    <Text style={styles.detailLabel}>SPEED</Text>
+                    <Text style={styles.detailLabel}>ALLOCATED SPEED</Text>
                     <Text style={styles.detailValue}>{activePlan.speed}</Text>
                   </View>
-                  <View style={styles.detailColumn}>
-                    <Text style={styles.detailLabel}>PLAN TYPE</Text>
-                    <Text style={styles.detailValue}>{activePlan.type.split(' ')[0]}</Text>
+                  <View style={[styles.detailColumn, styles.detailColumnRight]}>
+                    <Text style={styles.detailLabel}>INFRASTRUCTURE</Text>
+                    <Text style={[styles.detailValue, { color: '#10b981' }]}>FIBER</Text>
                   </View>
                 </View>
               </View>
             ) : (
               <View style={styles.emptyCardContainer}>
-                <Feather name="activity" size={24} color="#94a3b8" />
-                <Text style={styles.emptyCardTitle}>No Active Subscription</Text>
+                <Feather name="activity" size={24} color="#a0aec0" />
+                <Text style={styles.emptyCardTitle}>No Active Subscription Found</Text>
               </View>
             )}
 
@@ -229,20 +248,25 @@ export default function CustomerHomeScreen() {
               activeOpacity={0.9}
             >
               <View style={styles.iconCircleBackground}>
-                <Feather name="wifi" size={20} color="#ffffff" />
+                <Ionicons name="construct-outline" size={20} color="#ffffff" />
               </View>
               <View style={styles.bannerTextContainer}>
                 <Text style={styles.bannerTitle}>Report Connection Issue</Text>
-                <Text style={styles.bannerSubtitle}>Get instant technical support</Text>
+                <Text style={styles.bannerSubtitle}>Instantly provision dispatch tickets</Text>
               </View>
               <Feather name="chevron-right" size={20} color="#ffffff" style={{ opacity: 0.9 }} />
             </TouchableOpacity>
 
             {/* TIMELINE SECTION CONTAINER */}
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
-              <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.6}>
-                <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.sectionTitle}>Recent Activity Log</Text>
+              <TouchableOpacity 
+                style={styles.viewAllButton} 
+                activeOpacity={0.6}
+                onPress={() => router.push('/(customer)/profile')} // Directs to ticket status overview counters
+              >
+                <Text style={styles.viewAllText}>View Stats</Text>
+                <Feather name="arrow-right" size={14} color="#10b981" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
 
@@ -255,12 +279,15 @@ export default function CustomerHomeScreen() {
                   </View>
                 </View>
                 <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activityDate}>{item.date}</Text>
+                <View style={styles.activityFooter}>
+                  <Feather name="calendar" size={12} color="#a0aec0" style={{ marginRight: 6 }} />
+                  <Text style={styles.activityDate}>{item.date}</Text>
+                </View>
               </View>
             ))}
           </ScrollView>
 
-          {/* ASYNC BOTTOM GESTURE SHEET COMPONENT FROM TEMPLATE */}
+          {/* BOTTOM GESTURE SHEET COMPONENT */}
           <BottomSheetModal
             ref={bottomSheetModalRef}
             index={0}
@@ -276,11 +303,11 @@ export default function CustomerHomeScreen() {
                   onPress={handleCloseModalPress} 
                   style={styles.closeButtonCircle}
                 >
-                  <Feather name="x" size={18} color="#64748b" />
+                  <Feather name="x" size={16} color="#718096" />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.sheetSubtitle}>Select the issue you're experiencing</Text>
+              <Text style={styles.sheetSubtitle}>Select the option matching your active problem scenario</Text>
 
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScrollContent}>
                 {issueOptions.map((issue) => (
@@ -288,10 +315,10 @@ export default function CustomerHomeScreen() {
                     key={issue.id} 
                     style={styles.issueCard}
                     activeOpacity={0.7}
-                    onPress={() => handleIssueSelection(issue)} // Pops prompt alert instantly
+                    onPress={() => handleIssueSelection(issue)}
                   >
                     <View style={styles.issueIconCircle}>
-                      <Feather name={issue.icon} size={20} color="#475569" />
+                      <Feather name={issue.icon} size={18} color="#001a3d" />
                     </View>
                     
                     <View style={styles.issueTextContainer}>
@@ -299,7 +326,7 @@ export default function CustomerHomeScreen() {
                         <Text style={styles.issueTitle}>{issue.title}</Text>
                         {issue.hasQuickFix && (
                           <View style={styles.quickFixBadge}>
-                            <Text style={styles.quickFixText}>Quick Fix Available</Text>
+                            <Text style={styles.quickFixText}>Quick Fix</Text>
                           </View>
                         )}
                       </View>
@@ -323,28 +350,46 @@ export default function CustomerHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   header: {
-    backgroundColor: '#0b1e33',
+    backgroundColor: '#001a3d', // Deep Premium Navy Token
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   userInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#00b047',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#10b981', // Brand Theme Green
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    position: 'relative',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  avatarEditIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#001a3d',
+    borderRadius: 6,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#10b981',
   },
   headerGreeting: {
     color: '#ffffff',
@@ -353,15 +398,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   headerSubtitle: {
-    color: '#94a3b8',
+    color: '#a0aec0',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
   },
-  notificationButton: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconButton: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -370,74 +419,88 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 11,
-    backgroundColor: '#00b047',
+    backgroundColor: '#10b981',
     borderRadius: 4,
-    width: 8,
-    height: 8,
-    borderWidth: 1.5,
-    borderColor: '#0b1e33',
+    width: 7,
+    height: 7,
+    borderWidth: 1,
+    borderColor: '#001a3d',
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   broadbandCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f7fafc', // Soft wrapper frame grey
     borderRadius: 20,
     padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#001a3d',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 14,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e6f7ed',
+    backgroundColor: '#d1fae5',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00b047',
+    backgroundColor: '#10b981',
     marginRight: 6,
   },
   statusText: {
-    color: '#00b047',
-    fontSize: 13,
+    color: '#065f46',
+    fontSize: 12,
     fontWeight: '700',
   },
   wifiIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f0fdf4',
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   planTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#001a3d',
   },
   accountNumber: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#718096',
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: 4,
   },
   cardDivider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 16,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 18,
   },
   planDetailsGrid: {
     flexDirection: 'row',
@@ -445,29 +508,38 @@ const styles = StyleSheet.create({
   detailColumn: {
     flex: 1,
   },
+  detailColumnRight: {
+    alignItems: 'flex-end',
+  },
   detailLabel: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#a0aec0',
     fontWeight: '700',
     marginBottom: 4,
+    letterSpacing: 0.5,
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#001a3d',
   },
   reportBanner: {
-    backgroundColor: '#00b047',
-    borderRadius: 18,
+    backgroundColor: '#10b981',
+    borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 2,
   },
   iconCircleBackground: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -484,25 +556,28 @@ const styles = StyleSheet.create({
   bannerSubtitle: {
     color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
+    marginTop: 1,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#475569',
+    color: '#001a3d',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   viewAllText: {
-    color: '#00b047',
+    color: '#10b981',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -511,8 +586,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
   },
   activityHeader: {
     flexDirection: 'row',
@@ -522,88 +597,99 @@ const styles = StyleSheet.create({
   },
   ticketId: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#718096',
     fontWeight: '700',
   },
   resolvedBadge: {
-    backgroundColor: '#e6f7ed',
+    backgroundColor: '#d1fae5',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   resolvedBadgeText: {
-    color: '#00b047',
+    color: '#065f46',
     fontSize: 11,
     fontWeight: '700',
   },
   activityTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#001a3d',
+  },
+  activityFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
   },
   activityDate: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#718096',
     fontWeight: '600',
-    marginTop: 6,
   },
   emptyCardContainer: {
-    padding: 20,
+    padding: 30,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f7fafc',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    marginBottom: 20,
   },
   emptyCardTitle: {
-    color: '#64748b',
+    color: '#718096',
+    fontWeight: '600',
     marginTop: 8,
+    fontSize: 14,
   },
-
-  // --- TEMPLATE HOOK BOTTOM SHEET STYLES ---
   sheetBackground: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     backgroundColor: '#ffffff',
   },
   sheetIndicator: {
-    backgroundColor: '#e2e8f0',
-    width: 38,
+    backgroundColor: '#cbd5e0',
+    width: 40,
   },
   sheetContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   sheetTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.3,
+    color: '#001a3d',
   },
   closeButtonCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f7fafc',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sheetSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
-    marginTop: 10,
-    marginBottom: 16,
+    color: '#718096',
+    marginTop: 8,
+    marginBottom: 20,
   },
   sheetScrollContent: {
     paddingBottom: 40,
   },
   issueCard: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
+    backgroundColor: '#f7fafc',
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 14,
@@ -613,8 +699,10 @@ const styles = StyleSheet.create({
   issueIconCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -631,35 +719,35 @@ const styles = StyleSheet.create({
   issueTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#001a3d',
   },
   quickFixBadge: {
-    backgroundColor: '#e6f7ed',
+    backgroundColor: '#d1fae5',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   quickFixText: {
-    color: '#00b047',
-    fontSize: 11,
+    color: '#065f46',
+    fontSize: 10,
     fontWeight: '700',
   },
   issueSubtitleText: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#718096',
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 3,
   },
   selfServiceButton: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: '#001a3d',
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
   },
   selfServiceButtonText: {
-    color: '#1e293b',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '700',
   },

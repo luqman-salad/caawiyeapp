@@ -1,28 +1,49 @@
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StatusBar,
-} from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router'; 
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { authService } from "../../services/authService";
 
-type LoginTab = 'phone' | 'id';
+export default function UnifiedLoginScreen() {
+  const router = useRouter();
+  const [phone, setPhone] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-export default function CaawiyeLoginScreen() {
-  const [activeTab, setActiveTab] = useState<LoginTab>('phone');
-  const [inputValue, setInputValue] = useState('');
-  const router = useRouter(); 
+  const handleRequestOtp = async () => {
+    setErrorMessage(null);
+    const sanitizedPhone = phone.trim();
 
-  const handleLogin = () => {
-    router.replace('/(technician)'); 
+    if (!sanitizedPhone || sanitizedPhone.length < 8) {
+      setErrorMessage("Please enter a valid mobile phone number.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await authService.requestLoginOtp(sanitizedPhone);
+      
+      router.push({
+        pathname: "/(auth)/verifyOtp",
+        params: { phone: sanitizedPhone },
+      });
+    } catch (error: any) {
+      setErrorMessage(error.message || "Failed to send verification code. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -30,88 +51,90 @@ export default function CaawiyeLoginScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.card}>
-            
-            {/* Green Profile Header Icon */}
-            <View style={styles.iconContainer}>
-              <View style={styles.greenCircle}>
-                <Feather name="user" size={40} color="#ffffff" />
+          <View style={styles.brandContainer}>
+            <Text style={styles.logoText}>Caawiye</Text>
+            <Text style={styles.welcomeTitle}>Secure Sign In</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Enter your phone number to request a secure verification code for your account.
+            </Text>
+          </View>
+
+          <View style={styles.formContainer}>
+            {/* Premium Green Inline Error Banner */}
+            {errorMessage && (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
+                <Text style={styles.errorBannerText}>{errorMessage}</Text>
               </View>
-            </View>
+            )}
 
-            {/* Branding */}
-            <Text style={styles.mainTitle}>Caawiye Login</Text>
-            <Text style={styles.subTitle}>Field Technician App</Text>
-
-            {/* Segmented Tab Control */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tabButton, activeTab === 'phone' && styles.activeTabButton]}
-                activeOpacity={0.8}
-                onPress={() => { setActiveTab('phone'); setInputValue(''); }}
-              >
-                <Ionicons name="call-outline" size={18} color={activeTab === 'phone' ? '#00b047' : '#4a5568'} />
-                <Text style={[styles.tabButtonText, activeTab === 'phone' && styles.activeTabButtonText]}>Phone</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.tabButton, activeTab === 'id' && styles.activeTabButton]}
-                activeOpacity={0.8}
-                onPress={() => { setActiveTab('id'); setInputValue(''); }}
-              >
-                <Feather name="user" size={18} color={activeTab === 'id' ? '#00b047' : '#4a5568'} />
-                <Text style={[styles.tabButtonText, activeTab === 'id' && styles.activeTabButtonText]}>ID</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Input Section */}
-            <View style={styles.inputFormGroup}>
-              <Text style={styles.inputLabel}>
-                {activeTab === 'phone' ? 'Phone Number' : 'Technician ID'}
-              </Text>
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <View style={[styles.inputWrapper, errorMessage ? styles.inputWrapperError : null]}>
+              <Ionicons name="call-outline" size={20} color="#718096" style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder={activeTab === 'phone' ? '+25261XXXXXXX' : 'e.g. TECH-982'}
+                placeholder="e.g., +25261XXXXXXX"
                 placeholderTextColor="#a0aec0"
-                keyboardType={activeTab === 'phone' ? 'phone-pad' : 'default'}
-                value={inputValue}
-                onChangeText={setInputValue}
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                editable={!isSubmitting}
               />
             </View>
 
-            {/* Green Login Button */}
-            <TouchableOpacity 
-              style={styles.loginButton} 
-              activeOpacity={0.9}
-              onPress={handleLogin}
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+              activeOpacity={0.8}
+              onPress={handleRequestOtp}
+              disabled={isSubmitting}
             >
-              <Text style={styles.loginButtonText}>Login</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={styles.submitButtonText}>Send Security Code</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 8 }} />
+                </>
+              )}
             </TouchableOpacity>
 
-            {/* Updated Sign Up Footer Section */}
-            <View style={styles.footerContainer}>
-              <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                <Text style={styles.footerLink}>Sign up</Text>
-              </TouchableOpacity>
-              </View>
-              <View style={styles.footerRow}>
-              <Text style={styles.footerText}>I'm Customer? </Text>
-              <TouchableOpacity onPress={() => router.push('/(customer)/home')}>
-                <Text style={styles.footerLink}>Customer App</Text>
-              </TouchableOpacity>
-              </View>
+            {/* Link Options Section */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Don't have an account?</Text>
+              <View style={styles.dividerLine} />
             </View>
 
+            <View style={styles.linksVerticalStack}>
+              <TouchableOpacity 
+                style={styles.actionLinkRow}
+                onPress={() => router.push("/(auth)/registerCustomer" as any)} 
+                disabled={isSubmitting}
+              >
+                <Ionicons name="person-add-outline" size={18} color="#10b981" />
+                <Text style={styles.primaryLinkText}>Create Customer Account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.actionLinkRow, { marginTop: 16 }]}
+                onPress={() => router.push("/(auth)/registerTechnician" as any)} 
+                disabled={isSubmitting}
+              >
+                <Ionicons name="build-outline" size={18} color="#10b981" />
+                <Text style={styles.primaryLinkText}>Register as Technician</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -122,135 +145,154 @@ export default function CaawiyeLoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 24,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
-  card: {
-    width: '90%',
-    maxWidth: 380,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
+  brandContainer: {
+    alignItems: "flex-start",
+    marginBottom: 36,
+    width: "100%",
+    maxWidth: 320,
+    alignSelf: "center",
   },
-  iconContainer: { marginBottom: 16 },
-  greenCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#00b047',
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoText: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#10b981", // Caawiye Brand Theme Green
+    marginBottom: 16,
   },
-  mainTitle: { 
-    fontSize: 28, 
-    fontWeight: '800', 
-    color: '#001a3d' 
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#001a3d",
   },
-  subTitle: { 
-    fontSize: 15, 
-    fontWeight: '500', 
-    color: '#4a7396', 
-    marginTop: 4, 
-    marginBottom: 32 
+  welcomeSubtitle: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#718096",
+    lineHeight: 22,
+    marginTop: 8,
   },
-  tabContainer: { 
-    flexDirection: 'row', 
-    width: '100%', 
-    backgroundColor: '#f1f3f7', 
-    borderRadius: 12, 
-    padding: 4, 
-    marginBottom: 28 
+  formContainer: {
+    width: "100%",
+    maxWidth: 320,
+    alignSelf: "center",
   },
-  tabButton: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    height: 46, 
-    borderRadius: 10, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  errorBanner: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#fee2e2",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
   },
-  activeTabButton: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  errorBannerText: {
+    color: "#991b1b",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
   },
-  tabButtonText: { 
-    fontSize: 15, 
-    fontWeight: '600', 
-    color: '#4a5568', 
-    marginLeft: 8 
-  },
-  activeTabButtonText: { 
-    color: '#00b047', 
-    fontWeight: '700' 
-  },
-  inputFormGroup: { 
-    width: '100%', 
-    alignItems: 'flex-start', 
-    marginBottom: 24 
-  },
-  inputLabel: { 
-    fontSize: 13, 
-    fontWeight: '700', 
-    color: '#31476e', 
-    marginBottom: 10 
-  },
-  textInput: { 
-    width: '100%', 
-    height: 56, 
-    borderWidth: 1.5, 
-    borderColor: '#cbd5e0', 
-    borderRadius: 12, 
-    paddingHorizontal: 16, 
-    fontSize: 16, 
-    color: '#1a202c', 
-    backgroundColor: '#ffffff' 
-  },
-  loginButton: { 
-    width: '100%', 
-    height: 54, 
-    backgroundColor: '#00b047', 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 24 
-  },
-  loginButtonText: { 
-    color: '#ffffff', 
-    fontSize: 17, 
-    fontWeight: '700' 
-  },
-  footerContainer:{
-    flexDirection: 'column',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-
-  footerText: { 
-    fontSize: 14, 
-    fontWeight: '500', 
-    color: '#718096' 
-  },
-  footerLink: {
+  inputLabel: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#00b047',
+    fontWeight: "700",
+    color: "#001a3d",
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f7fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 54,
+    marginBottom: 24,
+  },
+  inputWrapperError: {
+    borderColor: "#ef4444",
+    backgroundColor: "#fff5f5",
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  textInput: {
+    flex: 1,
+    color: "#001a3d",
+    fontSize: 16,
+    fontWeight: "600",
+    height: "100%",
+  },
+  submitButton: {
+    width: "100%",
+    height: 54,
+    backgroundColor: "#10b981", // Caawiye Theme Green
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  disabledButton: {
+    backgroundColor: "#cbd5e0",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e2e8f0",
+  },
+  dividerText: {
+    fontSize: 13,
+    color: "#a0aec0",
+    paddingHorizontal: 10,
+    fontWeight: "500",
+  },
+  linksVerticalStack: {
+    width: "100%",
+    marginTop: 8,
+  },
+  actionLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f0fdf4", // Light green tint container
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    borderRadius: 12,
+    height: 48,
+    width: "100%",
+  },
+  primaryLinkText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#10b981", // Theme Green Color link matching
+    marginLeft: 8,
   },
 });
