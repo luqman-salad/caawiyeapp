@@ -33,6 +33,12 @@ export default function CustomerLayout() {
           headerShown: false
         }} 
       />
+      <Stack.Screen 
+        name="reportIssue"
+        options={{
+          title: "Report Issue",
+        }} 
+      />
     </Stack>
   );
 }

@@ -43,8 +43,12 @@ export default function CustomerProfileScreen() {
   const fetchCustomerProfile = async () => {
     try {
       setIsLoading(true);
-      const data = await getCustomerProfile();
-      setProfile(data);
+      const response = await getCustomerProfile();
+      
+      // CORRECTED: Accessing the nested 'data' object from your API response
+      if (response && response.success) {
+        setProfile(response.data);
+      }
     } catch (error: any) {
       console.error("API Error:", error.response?.data || error.message);
       Alert.alert("Error", "Could not load profile. Please try again.");
