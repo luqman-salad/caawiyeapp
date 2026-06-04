@@ -14,14 +14,15 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getTechnicianTickets, getTechnicianProfile } from '../../services/technicianService';
 
-// --- Types ---
+// --- Updated Types to match API ---
 export interface TechnicianTicket {
   id: string;
-  customer: string;
-  type: string;
-  time: string;
+  ticket_number: string;
+  title: string;
+  category: string;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   status: string;
+  created_at: string;
 }
 
 export default function Dashboard() {
@@ -31,28 +32,25 @@ export default function Dashboard() {
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
-  setLoading(true);
-  try {
-    // Call them individually to see which one fails
-    const profileRes = await getTechnicianProfile().catch(e => { console.error("Profile API Error:", e.response?.data); throw e; });
-    const ticketRes = await getTechnicianTickets().catch(e => { console.error("Ticket API Error:", e.response?.data); throw e; });
-    
-    if (profileRes.success) {
-      setIsOnline(profileRes.data.status === 'ONLINE');
+    setLoading(true);
+    try {
+      const [profileRes, ticketRes] = await Promise.all([
+        getTechnicianProfile(),
+        getTechnicianTickets()
+      ]);
+      
+      if (profileRes.success) {
+        setIsOnline(profileRes.data.status === 'ONLINE');
+      }
+      setTasks(ticketRes?.data || []);
+    } catch (err) {
+      console.error("Dashboard sync failed.");
+    } finally {
+      setLoading(false);
     }
-    setTasks(ticketRes?.data || []);
-  } catch (err) {
-    console.error("Dashboard sync failed.");
-  } finally {
-    setLoading(false);
-  }
-}, []);
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData])
-  );
+  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
   const getPriorityStyles = (priority: string) => {
     switch (priority) {
@@ -130,21 +128,31 @@ export default function Dashboard() {
                 <View style={styles.taskCardHeader}>
                   <View style={styles.customerNameRow}>
                     <Feather name="alert-circle" size={20} color="#f97316" style={styles.alertIcon} />
-                    <Text style={styles.customerNameText}>{task.customer}</Text>
+                    <Text style={styles.customerNameText}>{task.ticket_number}</Text>
                   </View>
                   <View style={[styles.priorityPill, priorityStyle.container]}>
                     <Text style={[styles.priorityPillText, priorityStyle.text]}>{task.priority}</Text>
                   </View>
                 </View>
-                <Text style={styles.taskTypeText}>{task.type}</Text>
+                
+                <Text style={styles.taskTypeText}>{task.title}</Text>
+                
                 <View style={styles.taskMetaRow}>
                   <View style={styles.timeRow}>
-                    <Feather name="clock" size={14} color="#64748b" />
-                    <Text style={styles.timeText}>{task.time}</Text>
+                    <Feather name="folder" size={14} color="#64748b" />
+                    <Text style={styles.timeText}>{task.category}</Text>
                   </View>
                   <Text style={styles.statusLabelText}>{task.status}</Text>
                 </View>
-                <TouchableOpacity style={styles.detailsButton} activeOpacity={0.8} onPress={() => router.push('/(technician)/taskDetail')}>
+                
+                <TouchableOpacity 
+                  style={styles.detailsButton} 
+                  activeOpacity={0.8} 
+                  onPress={() => router.push({
+                    pathname: '/(technician)/taskDetail',
+                    params: { id: task.id }
+                  })}
+                >
                   <Text style={styles.detailsButtonText}>View Details →</Text>
                 </TouchableOpacity>
               </View>
@@ -161,8 +169,8 @@ export default function Dashboard() {
   );
 }
 
+// ... styles unchanged from your original input
 const styles = StyleSheet.create({
-  // ... existing styles ...
   container: { flex: 1, backgroundColor: '#f6f8fa' },
   greenHeaderBlock: { backgroundColor: '#00b047', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingHorizontal: 20, paddingTop: 54, paddingBottom: 24 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -200,7 +208,6 @@ const styles = StyleSheet.create({
   statusLabelText: { fontSize: 13, color: '#475569', fontWeight: '500' },
   detailsButton: { backgroundColor: '#00b047', borderRadius: 10, height: 48, justifyContent: 'center', alignItems: 'center', width: '100%' },
   detailsButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  // Added Styles
   noTasksContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, marginTop: 10 },
   noTasksText: { fontSize: 14, color: '#94a3b8', marginTop: 12, fontWeight: '600' },
 });
