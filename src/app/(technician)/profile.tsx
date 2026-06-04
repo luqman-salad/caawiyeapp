@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,167 +7,136 @@ import {
   TouchableOpacity,
   Switch,
   StatusBar,
-  Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getTechnicianProfile, updateTechnicianStatus } from '../../services/technicianService';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
+      setErrorMessage(null);
       const response = await getTechnicianProfile();
       if (response.success) setProfile(response.data);
-    } catch (err) {
+    } catch (err) { 
       setErrorMessage("Failed to load profile.");
-    } finally {
+    } finally { 
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProfile();
+  }, [fetchProfile]);
+
+  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
   const handleToggleStatus = async (value: boolean) => {
     setIsUpdating(true);
     setErrorMessage(null);
     try {
-      // 1. Get current location
-      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
-      if (locStatus !== 'granted') {
-        throw new Error("Location permission is required to update status.");
-      }
-      const location = await Location.getCurrentPositionAsync({});
-      
-      // 2. Call API with status and coordinates
-      const newStatus = value ? 'ONLINE' : 'OFFLINE';
-      await updateTechnicianStatus(newStatus, location.coords.latitude, location.coords.longitude);
-      
-      // 3. Update local state
-      setProfile({ ...profile, status: newStatus });
-    } catch (err: any) {
-      setErrorMessage(err.message || "Could not update status.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => router.push('/(auth)') },
-    ]);
+      const loc = await Location.getCurrentPositionAsync({});
+      await updateTechnicianStatus(value ? 'ONLINE' : 'OFFLINE', loc.coords.latitude, loc.coords.longitude);
+      setProfile((prev: any) => ({ ...prev, status: value ? 'ONLINE' : 'OFFLINE' }));
+    } catch (err) { 
+      setErrorMessage("Could not update status.");
+    } finally { setIsUpdating(false); }
   };
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#00b047" /></View>;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView 
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00b047']} />}
+      >
         {errorMessage && (
           <View style={styles.errorBanner}>
             <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
             <Text style={styles.errorBannerText}>{errorMessage}</Text>
           </View>
         )}
+        
+        <View style={styles.hero}>
+          <View style={styles.avatar}><Feather name="user" size={40} color="#fff" /></View>
+          <Text style={styles.title}>{profile?.user?.phone}</Text>
+          <Text style={styles.subtitle}>{profile?.user?.email}</Text>
+          <View style={styles.badge}><Text style={styles.badgeText}>{profile?.status}</Text></View>
+        </View>
 
-        <View style={styles.profileHeaderCard}>
-          <View style={styles.avatarContainer}>
-            <Feather name="user" size={42} color="#ffffff" />
-          </View>
-          <Text style={styles.technicianName}>{profile?.user.phone}</Text>
-          <Text style={styles.technicianId}>ID: {profile?.id.substring(0, 8)}</Text>
-
-          <View style={styles.availabilityBox}>
-            <View style={styles.availabilityTextRow}>
-              <Feather name="power" size={16} color={profile?.status === 'ONLINE' ? '#00b047' : '#64748b'} style={{ marginRight: 8 }} />
-              <Text style={styles.availabilityLabel}>Availability Status</Text>
-            </View>
-            {isUpdating ? (
-              <ActivityIndicator size="small" color="#00b047" />
-            ) : (
-              <Switch
-                trackColor={{ false: '#e2e8f0', true: '#00b047' }}
-                thumbColor="#ffffff"
-                onValueChange={handleToggleStatus}
-                value={profile?.status === 'ONLINE'}
-              />
-            )}
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.label}>Availability</Text>
+            {isUpdating ? <ActivityIndicator size="small" /> : 
+              <Switch value={profile?.status === 'ONLINE'} onValueChange={handleToggleStatus} trackColor={{true: '#00b047'}} />}
           </View>
         </View>
 
-        <View style={styles.infoCard}>
-          <View style={styles.cardHeaderRow}>
-            <Feather name="map-pin" size={18} color="#00b047" style={{ marginRight: 8 }} />
-            <Text style={styles.cardTitle}>Zone Assignment</Text>
-          </View>
-          <Text style={styles.cardHighlightText}>{profile?.zone_assignment}</Text>
+        <View style={styles.grid}>
+          <View style={[styles.card, {flex: 1, marginRight: 5}]}><Text style={styles.statVal}>{profile?.stats?.total_assigned ?? 0}</Text><Text style={styles.statLabel}>Assigned</Text></View>
+          <View style={[styles.card, {flex: 1, marginHorizontal: 5}]}><Text style={styles.statVal}>{profile?.stats?.active_tickets ?? 0}</Text><Text style={styles.statLabel}>Active</Text></View>
+          <View style={[styles.card, {flex: 1, marginLeft: 5}]}><Text style={styles.statVal}>{profile?.stats?.completed_tickets ?? 0}</Text><Text style={styles.statLabel}>Done</Text></View>
         </View>
 
-        <View style={styles.infoCard}>
-          <View style={styles.cardHeaderRow}>
-            <Feather name="award" size={18} color="#00b047" style={{ marginRight: 8 }} />
-            <Text style={styles.cardTitle}>Performance Stats</Text>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: '#00b047' }]}>{profile?.stats.completed_tickets}</Text>
-              <Text style={styles.statLabel}>Tasks Done</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: '#00b047' }]}>{profile?.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: '#00b047' }]}>{profile?.stats.active_tickets}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-          </View>
+        <View style={styles.card}>
+          <InfoRow icon="map-marker" label="Zone" value={profile?.zone_assignment} />
+          <InfoRow icon="star" label="Rating" value={`${profile?.rating ?? 0}/5.0`} />
+          <InfoRow icon="briefcase" label="Skills" value={profile?.skills?.join(', ') || 'N/A'} />
+          <InfoRow icon="clock-outline" label="Last Login" value={new Date(profile?.user?.last_login_at || Date.now()).toLocaleDateString()} />
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Feather name="log-out" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-          <Text style={styles.logoutButtonText}>Logout</Text>
+        <TouchableOpacity style={styles.logout} onPress={() => router.push('/(auth)')}>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const InfoRow = ({ icon, label, value }: any) => (
+  <View style={styles.infoRow}>
+    <MaterialCommunityIcons name={icon} size={20} color="#64748b" />
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoVal}>{value}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  profileHeaderCard: { backgroundColor: '#ffffff', borderRadius: 20, padding: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9' },
-  avatarContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#00b047', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  technicianName: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  technicianId: { fontSize: 14, color: '#64748b', fontWeight: '600', marginTop: 2, marginBottom: 16 },
-  availabilityBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, width: '100%' },
-  availabilityTextRow: { flexDirection: 'row', alignItems: 'center' },
-  availabilityLabel: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
-  infoCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#f1f5f9' },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
-  cardHighlightText: { fontSize: 16, fontWeight: '600', color: '#334155' },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-  statBox: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#64748b', fontWeight: '600' },
-  logoutButton: { backgroundColor: '#dc2626', borderRadius: 14, height: 52, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10 },
-  logoutButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
+  scroll: { padding: 20 },
+  centered: { flex: 1, justifyContent: 'center' },
+  hero: { alignItems: 'center', marginBottom: 20 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#00b047', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '800', marginTop: 10 },
+  subtitle: { color: '#64748b', marginBottom: 10 },
+  badge: { backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  badgeText: { color: '#166534', fontWeight: '700' },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 10 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { fontSize: 16, fontWeight: '600' },
+  grid: { flexDirection: 'row', marginBottom: 10 },
+  statVal: { fontSize: 18, fontWeight: '800', color: '#00b047' },
+  statLabel: { fontSize: 12, color: '#64748b' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  infoLabel: { flex: 1, marginLeft: 10, color: '#475569' },
+  infoVal: { fontWeight: '600' },
+  logout: { marginTop: 20, padding: 16, alignItems: 'center' },
+  logoutText: { color: '#ef4444', fontWeight: '700' },
   errorBanner: { backgroundColor: "#fef2f2", borderColor: "#fee2e2", borderWidth: 1, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", marginBottom: 20 },
   errorBannerText: { color: "#991b1b", fontSize: 13, fontWeight: "600", flex: 1 },
 });

@@ -30,28 +30,24 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Fetches current status and tickets
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [profileRes, ticketRes] = await Promise.all([
-        getTechnicianProfile(),
-        getTechnicianTickets()
-      ]);
-      
-      if (profileRes.success) {
-        setIsOnline(profileRes.data.status === 'ONLINE');
-      }
-      setTasks(ticketRes?.data || []);
-    } catch (err) {
-      console.error("Failed to sync dashboard:", err);
-      setTasks([]);
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    // Call them individually to see which one fails
+    const profileRes = await getTechnicianProfile().catch(e => { console.error("Profile API Error:", e.response?.data); throw e; });
+    const ticketRes = await getTechnicianTickets().catch(e => { console.error("Ticket API Error:", e.response?.data); throw e; });
+    
+    if (profileRes.success) {
+      setIsOnline(profileRes.data.status === 'ONLINE');
     }
-  }, []);
+    setTasks(ticketRes?.data || []);
+  } catch (err) {
+    console.error("Dashboard sync failed.");
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
-  // Correct implementation of useFocusEffect with an async wrapper
   useFocusEffect(
     useCallback(() => {
       fetchData();
@@ -126,7 +122,7 @@ export default function Dashboard() {
 
         {loading ? (
           <ActivityIndicator size="large" color="#00b047" style={{ marginTop: 20 }} />
-        ) : (
+        ) : tasks.length > 0 ? (
           tasks.map((task) => {
             const priorityStyle = getPriorityStyles(task.priority);
             return (
@@ -154,6 +150,11 @@ export default function Dashboard() {
               </View>
             );
           })
+        ) : (
+          <View style={styles.noTasksContainer}>
+            <Feather name="check-circle" size={48} color="#cbd5e1" />
+            <Text style={styles.noTasksText}>No tasks available at the moment.</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -161,6 +162,7 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
+  // ... existing styles ...
   container: { flex: 1, backgroundColor: '#f6f8fa' },
   greenHeaderBlock: { backgroundColor: '#00b047', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingHorizontal: 20, paddingTop: 54, paddingBottom: 24 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -198,4 +200,7 @@ const styles = StyleSheet.create({
   statusLabelText: { fontSize: 13, color: '#475569', fontWeight: '500' },
   detailsButton: { backgroundColor: '#00b047', borderRadius: 10, height: 48, justifyContent: 'center', alignItems: 'center', width: '100%' },
   detailsButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  // Added Styles
+  noTasksContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, marginTop: 10 },
+  noTasksText: { fontSize: 14, color: '#94a3b8', marginTop: 12, fontWeight: '600' },
 });
