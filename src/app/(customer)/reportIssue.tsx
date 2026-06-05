@@ -6,7 +6,9 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { createTicket } from "../../services/ticketService";
+import Header from "../../components/Header";
 
 export default function ReportIssueScreen() {
   const router = useRouter();
@@ -61,9 +63,11 @@ export default function ReportIssueScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Report {issueTitle}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={['bottom']}>
+      <Header title="Report Issue" showBack={true} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Report {issueTitle}</Text>
         
         {errorMessage && (
           <View style={styles.errorBanner}>
@@ -100,8 +104,9 @@ export default function ReportIssueScreen() {
             <Text style={styles.buttonText}>Submit Ticket</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

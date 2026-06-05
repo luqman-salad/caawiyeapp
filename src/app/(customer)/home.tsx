@@ -26,7 +26,7 @@ interface ActivityItem {
   ticket_number: string;
   title: string;
   date: string;
-  status: 'Pending' | 'In Progress' | 'Resolved';
+  status: string;
 }
 
 interface BroadbandPlan {
@@ -65,21 +65,38 @@ export default function CustomerHomeScreen() {
     { id: 'equipment', title: 'Equipment Issue', subtitle: 'Router or hardware problem', icon: 'sliders', hasQuickFix: false },
   ];
 
+  const getStatusBadgeStyle = (status: string) => {
+    const s = status ? status.toUpperCase() : '';
+    switch (s) {
+      case 'REPORTED':
+      case 'AUTO_DISPATCHING':
+        return { bg: '#fef3c7', text: '#d97706', label: s === 'REPORTED' ? 'Pending' : 'Matching' };
+      case 'COMPLETED':
+      case 'RESOLVED':
+        return { bg: '#d1fae5', text: '#065f46', label: s === 'RESOLVED' ? 'Resolved' : 'Completed' };
+      case 'ON_THE_WAY':
+        return { bg: '#eff6ff', text: '#1e40af', label: 'En Route' };
+      case 'DISPATCHED':
+        return { bg: '#eff6ff', text: '#1e40af', label: 'Assigned' };
+      case 'IN_PROGRESS':
+        return { bg: '#e0f2fe', text: '#0369a1', label: 'In Progress' };
+      default:
+        return { bg: '#f1f5f9', text: '#475569', label: status };
+    }
+  };
+
   const fetchTickets = async () => {
     try {
       const response = await getCustomerTickets();
       if (response.success && Array.isArray(response.data)) {
         const mappedTickets: ActivityItem[] = response.data.map((ticket: any) => ({
-          // CHANGE THIS LINE: Use the actual UUID from the API
           id: ticket.id, 
           ticket_number: ticket.ticket_number,
-          // Keep the ticket number for display purposes if you want, 
-          // but do not use it for navigation navigation or API lookups
           title: ticket.title,
           date: new Date(ticket.created_at).toLocaleDateString('en-US', { 
             month: 'short', day: 'numeric', year: 'numeric' 
           }),
-          status: ticket.status === 'REPORTED' ? 'Pending' : 'In Progress'
+          status: ticket.status
         }));
         setRecentActivity(mappedTickets);
       }
@@ -152,21 +169,39 @@ export default function CustomerHomeScreen() {
               <View style={styles.bannerTextContainer}><Text style={styles.bannerTitle}>Report Connection Issue</Text><Text style={styles.bannerSubtitle}>Instantly provision dispatch tickets</Text></View>
               <Feather name="chevron-right" size={20} color="#ffffff" style={{ opacity: 0.9 }} />
             </TouchableOpacity>
-            <View style={styles.sectionHeaderRow}><Text style={styles.sectionTitle}>Recent Activity Log</Text></View>
-            {recentActivity.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={styles.activityCard}
-                onPress={() => router.push({
-                  pathname: '/(customer)/ticketDetails',
-                  params: { id: item.id }
-                })}
-              >
-                <View style={styles.activityHeader}><Text style={styles.ticketId}>{item.ticket_number}</Text><View style={styles.resolvedBadge}><Text style={styles.resolvedBadgeText}>{item.status}</Text></View></View>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <View style={styles.activityFooter}><Feather name="calendar" size={12} color="#a0aec0" style={{ marginRight: 6 }} /><Text style={styles.activityDate}>{item.date}</Text></View>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Recent Activity Log</Text>
+              <TouchableOpacity onPress={() => router.push('/(customer)/reportedTickets')}>
+                <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+            {recentActivity.map((item) => {
+              const statusStyle = getStatusBadgeStyle(item.status);
+              return (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={styles.activityCard}
+                  onPress={() => router.push({
+                    pathname: '/(customer)/ticketDetails',
+                    params: { id: item.id }
+                  })}
+                >
+                  <View style={styles.activityHeader}>
+                    <Text style={styles.ticketId}>{item.ticket_number}</Text>
+                    <View style={[styles.resolvedBadge, { backgroundColor: statusStyle.bg }]}>
+                      <Text style={[styles.resolvedBadgeText, { color: statusStyle.text }]}>
+                        {statusStyle.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <View style={styles.activityFooter}>
+                    <Feather name="calendar" size={12} color="#a0aec0" style={{ marginRight: 6 }} />
+                    <Text style={styles.activityDate}>{item.date}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <BottomSheetModal ref={bottomSheetModalRef} index={0} snapPoints={snapPoints} backdropComponent={renderBackdrop} backgroundStyle={styles.sheetBackground} handleIndicatorStyle={styles.sheetIndicator}>
@@ -225,6 +260,7 @@ const styles = StyleSheet.create({
   bannerSubtitle: { color: 'rgba(255, 255, 255, 0.85)', fontSize: 13, fontWeight: '500', marginTop: 1 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#001a3d', textTransform: 'uppercase', letterSpacing: 0.6 },
+  viewAllText: { fontSize: 13, fontWeight: '700', color: '#10b981' },
   activityCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#e2e8f0' },
   activityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   ticketId: { fontSize: 12, color: '#718096', fontWeight: '700' },

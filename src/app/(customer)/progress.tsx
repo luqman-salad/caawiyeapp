@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import Header from '../../components/Header';
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -18,6 +21,8 @@ import {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { getTicketById, getTicketLogs } from '../../services/ticketService';
+import apiClient from '../../utils/apis';
 
 interface FeedbackTag {
   id: string;
@@ -26,14 +31,20 @@ interface FeedbackTag {
 
 export default function WorkProgressScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['85%'], []);
+
+  const [ticket, setTicket] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // --- REVIEW STATE ENGINE ---
   const [rating, setRating] = useState<number>(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
 
   const feedbackTags: FeedbackTag[] = [
     { id: '1', label: 'Professional' },
@@ -43,6 +54,37 @@ export default function WorkProgressScreen() {
     { id: '5', label: 'Friendly' },
     { id: '6', label: 'Clean Work' },
   ];
+
+  const fetchProgress = async () => {
+    if (!id) return;
+    try {
+      const [ticketRes, logsRes] = await Promise.all([
+        getTicketById(id as string),
+        getTicketLogs(id as string)
+      ]);
+
+      if (ticketRes.success) {
+        setTicket(ticketRes.data);
+        // Auto-show rating modal when ticket changes to COMPLETED state and hasn't been rated yet
+        if (ticketRes.data.status === 'COMPLETED' && !ticketRes.data.rating_score && !isSubmitted) {
+          bottomSheetModalRef.current?.present();
+        }
+      }
+      if (logsRes.success) {
+        setLogs(logsRes.data || []);
+      }
+    } catch (error) {
+      console.error("Error loading progress logs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProgress();
+    const interval = setInterval(fetchProgress, 5000);
+    return () => clearInterval(interval);
+  }, [id]);
 
   // --- BOTTOM SHEET INTERACTION HANDLERS ---
   const handlePresentReviewSheet = useCallback(() => {
@@ -65,11 +107,23 @@ export default function WorkProgressScreen() {
     }
   };
 
-  const handleSubmitReview = () => {
-    if (rating === 0) return;
+  const handleSubmitReview = async () => {
+    if (rating === 0 || !ticket) return;
     
     if (!isSubmitted) {
-      setIsSubmitted(true);
+      setSubmittingReview(true);
+      try {
+        await apiClient.post(`/tickets/${ticket.id}/review`, {
+          rating: rating,
+          tags: selectedTags,
+          comment: comment.trim(),
+        });
+        setIsSubmitted(true);
+      } catch (err) {
+        Alert.alert("Review Failed", "Unable to submit rating at this moment.");
+      } finally {
+        setSubmittingReview(false);
+      }
     } else {
       bottomSheetModalRef.current?.dismiss();
       router.push('/(customer)/home');
@@ -88,11 +142,35 @@ export default function WorkProgressScreen() {
     []
   );
 
+  if (loading) {
+    return (
+      <View style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color="#00b047" />
+      </View>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={{ color: '#e53e3e' }}>Work progress details not found.</Text>
+      </View>
+    );
+  }
+
+  // Map timeline events from real logs
+  const isCreated = logs.some(l => l.action === 'TICKET_REPORTED' || l.new_status === 'REPORTED');
+  const isDispatched = logs.some(l => l.action === 'TICKET_ACCEPTED' || l.new_status === 'DISPATCHED');
+  const isTransit = logs.some(l => l.action === 'TICKET_TRANSIT' || l.new_status === 'ON_THE_WAY');
+  const isInProgress = logs.some(l => l.action === 'TICKET_STARTED' || l.new_status === 'IN_PROGRESS');
+  const isCompleted = logs.some(l => l.action === 'TICKET_COMPLETED' || l.new_status === 'COMPLETED');
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
           <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+          <Header title="Work Progress" showBack={true} />
 
           <ScrollView 
             showsVerticalScrollIndicator={false}
@@ -100,53 +178,94 @@ export default function WorkProgressScreen() {
           >
             {/* --- SECTION 1: TIMELINE WORK PROGRESS --- */}
             <View style={styles.cardSection}>
-              <Text style={styles.sectionHeading}>Work Progress</Text>
+              <Text style={styles.sectionHeading}>Work Progress - {ticket.ticket_number}</Text>
 
+              {/* Event 1: Ticket Created */}
               <View style={styles.timelineRow}>
                 <View style={styles.timelineIndicatorColumn}>
-                  <View style={styles.completedIconCircle}>
-                    <Feather name="check" size={14} color="#ffffff" />
+                  <View style={isCreated ? styles.completedIconCircle : styles.futurePendingIconCircle}>
+                    {isCreated && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
-                  <View style={styles.timelineLineLinkActive} />
+                  <View style={isDispatched ? styles.timelineLineLinkActive : styles.timelineLineLinkInactive} />
                 </View>
                 <View style={styles.timelineTextColumn}>
                   <Text style={styles.timelineTitleText}>Ticket Created</Text>
-                  <Text style={styles.timelineTimestampText}>May 25, 2026 at 10:23 AM</Text>
+                  <Text style={styles.timelineTimestampText}>
+                    {logs.find(l => l.action === 'TICKET_REPORTED')?.created_at 
+                      ? new Date(logs.find(l => l.action === 'TICKET_REPORTED')?.created_at).toLocaleTimeString()
+                      : "Pending"}
+                  </Text>
                 </View>
               </View>
 
+              {/* Event 2: Technician Dispatched */}
               <View style={styles.timelineRow}>
                 <View style={styles.timelineIndicatorColumn}>
-                  <View style={styles.completedIconCircle}>
-                    <Feather name="check" size={14} color="#ffffff" />
+                  <View style={isDispatched ? styles.completedIconCircle : styles.futurePendingIconCircle}>
+                    {isDispatched && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
-                  <View style={styles.timelineLineLinkActive} />
+                  <View style={isTransit ? styles.timelineLineLinkActive : styles.timelineLineLinkInactive} />
                 </View>
                 <View style={styles.timelineTextColumn}>
-                  <Text style={styles.timelineTitleText}>Technician Dispatched</Text>
-                  <Text style={styles.timelineTimestampText}>May 25, 2026 at 10:45 AM</Text>
+                  <Text style={isDispatched ? styles.timelineTitleText : styles.timelineTitleTextPending}>Technician Assigned</Text>
+                  {isDispatched && (
+                    <Text style={styles.timelineTimestampText}>
+                      {new Date(logs.find(l => l.action === 'TICKET_ACCEPTED')?.created_at).toLocaleTimeString()}
+                    </Text>
+                  )}
                 </View>
               </View>
 
+              {/* Event 3: Technician En Route */}
               <View style={styles.timelineRow}>
                 <View style={styles.timelineIndicatorColumn}>
-                  <View style={styles.activeProgressIconCircle}>
-                    <View style={styles.spinningRingCosmetic} />
+                  <View style={isTransit ? styles.completedIconCircle : styles.futurePendingIconCircle}>
+                    {isTransit && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
-                  <View style={styles.timelineLineLinkInactive} />
+                  <View style={isInProgress ? styles.timelineLineLinkActive : styles.timelineLineLinkInactive} />
                 </View>
                 <View style={styles.timelineTextColumn}>
-                  <Text style={styles.timelineTitleTextActive}>Resolving Fiber Splice at Distribution Box</Text>
-                  <Text style={styles.timelineProgressStatusHint}>In progress...</Text>
+                  <Text style={isTransit ? styles.timelineTitleText : styles.timelineTitleTextPending}>Technician En Route</Text>
+                  {isTransit && (
+                    <Text style={styles.timelineTimestampText}>
+                      {new Date(logs.find(l => l.action === 'TICKET_TRANSIT')?.created_at).toLocaleTimeString()}
+                    </Text>
+                  )}
                 </View>
               </View>
 
+              {/* Event 4: Work Started */}
               <View style={styles.timelineRow}>
                 <View style={styles.timelineIndicatorColumn}>
-                  <View style={styles.futurePendingIconCircle} />
+                  <View style={isInProgress ? styles.completedIconCircle : styles.futurePendingIconCircle}>
+                    {isInProgress && <Feather name="check" size={14} color="#ffffff" />}
+                  </View>
+                  <View style={isCompleted ? styles.timelineLineLinkActive : styles.timelineLineLinkInactive} />
                 </View>
                 <View style={styles.timelineTextColumn}>
-                  <Text style={styles.timelineTitleTextPending}>Customer Verification & Sign-off</Text>
+                  <Text style={isInProgress ? styles.timelineTitleText : styles.timelineTitleTextPending}>Work In Progress</Text>
+                  {isInProgress && (
+                    <Text style={styles.timelineTimestampText}>
+                      {new Date(logs.find(l => l.action === 'TICKET_STARTED')?.created_at).toLocaleTimeString()}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Event 5: Completed */}
+              <View style={styles.timelineRow}>
+                <View style={styles.timelineIndicatorColumn}>
+                  <View style={isCompleted ? styles.completedIconCircle : styles.futurePendingIconCircle}>
+                    {isCompleted && <Feather name="check" size={14} color="#ffffff" />}
+                  </View>
+                </View>
+                <View style={styles.timelineTextColumn}>
+                  <Text style={isCompleted ? styles.timelineTitleText : styles.timelineTitleTextPending}>Work Completed</Text>
+                  {isCompleted && (
+                    <Text style={styles.timelineTimestampText}>
+                      {new Date(logs.find(l => l.action === 'TICKET_COMPLETED')?.created_at).toLocaleTimeString()}
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -170,7 +289,9 @@ export default function WorkProgressScreen() {
                   <MaterialCommunityIcons name="qrcode-scan" size={22} color="#64748b" />
                 </View>
                 <Text style={styles.dashedBoxTitleText}>Asset Verification</Text>
-                <Text style={styles.dashedBoxSubtitleText}>QR code scan will be enabled by technician</Text>
+                <Text style={styles.dashedBoxSubtitleText}>
+                  {isInProgress ? "Technician will verify dynamic site assets" : "Pending technician arrival"}
+                </Text>
               </View>
             </View>
 
@@ -181,16 +302,19 @@ export default function WorkProgressScreen() {
                   <Feather name="camera" size={22} color="#64748b" />
                 </View>
                 <Text style={styles.dashedBoxTitleText}>Photo Documentation</Text>
-                <Text style={styles.dashedBoxSubtitleText}>Awaiting completion photos</Text>
+                <Text style={styles.dashedBoxSubtitleText}>
+                  {isCompleted ? "Completion photos uploaded successfully." : "Awaiting completion photos"}
+                </Text>
               </View>
             </View>
 
             {/* --- INTERACTIVE ACTION BUTTON LAYOUT FOOTER --- */}
             <View style={styles.footerActionLayoutArea}>
               <TouchableOpacity 
-                style={styles.primaryAuthButton} 
+                style={[styles.primaryAuthButton, !isCompleted && { backgroundColor: '#cbd5e0' }]} 
                 activeOpacity={0.85}
                 onPress={handlePresentReviewSheet}
+                disabled={!isCompleted}
               >
                 <Text style={styles.primaryAuthButtonText}>Authenticate & Complete Work</Text>
               </TouchableOpacity>
@@ -728,5 +852,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
 });

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import Header from '../../components/Header';
 
 interface NotificationItem {
   id: string;
@@ -100,29 +101,7 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => n.isUnread).length;
 
   // --- RENDER COMPONENT LAYOUTS ---
-  const renderHeaderCard = () => (
-    <View style={styles.outerHeaderContainer}>
-      {/* WHITE ROUNDED EDGE CARD HEADER (NO BACK ARROW) */}
-      <View style={styles.headerCard}>
-        <View style={styles.headerLeftBlock}>
-          <Text style={styles.headerTitleText}>Notifications</Text>
-          <Text style={styles.headerSubtitleText}>
-            {unreadCount > 0 ? `${unreadCount} unread` : 'No unread notifications'}
-          </Text>
-        </View>
 
-        {unreadCount > 0 && (
-          <TouchableOpacity 
-            activeOpacity={0.6} 
-            onPress={handleMarkAllRead}
-            style={styles.markReadButton}
-          >
-            <Text style={styles.markAllReadText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyStateBlock}>
@@ -133,14 +112,28 @@ export default function NotificationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.screenWrapper} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+    <SafeAreaView style={styles.screenWrapper} edges={['bottom', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <Header 
+        title="Notifications" 
+        showBack={true} 
+        rightElement={
+          unreadCount > 0 ? (
+            <TouchableOpacity 
+              activeOpacity={0.6} 
+              onPress={handleMarkAllRead}
+              style={styles.markReadButton}
+            >
+              <Text style={styles.markAllReadText}>Mark all read</Text>
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
       
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={renderHeaderCard}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={styles.listContentPadding}
         style={styles.mainFlatList}

@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
+import * as Application from "expo-application";
+import * as Device from "expo-device";
 import { authService } from "../../services/authService";
 
 export default function VerifyOtpScreen() {
@@ -88,10 +90,29 @@ export default function VerifyOtpScreen() {
     try {
       const result = await authService.verifyLoginOtp(phone || "", fullToken);
 
-      // PERSIST TOKEN TO SECURE STORAGE
+      // Resolve and persist device details
+      let deviceId = "unknown_device";
+      if (Platform.OS === "android") {
+        const androidId = await Application.getAndroidId();
+        deviceId = androidId || "fallback_android_id";
+      } else if (Platform.OS === "ios") {
+        const iosId = await Application.getIosIdForVendorAsync();
+        deviceId = iosId || "fallback_ios_id";
+      }
+      const deviceName = `${Device.brand || ""} ${Device.modelName || "Mobile-Device"}`.trim();
+
+      // PERSIST CREDENTIALS TO SECURE STORAGE
       if (result.token) {
         await SecureStore.setItemAsync("userToken", result.token);
       }
+      if (result.refreshToken) {
+        await SecureStore.setItemAsync("refreshToken", result.refreshToken);
+      }
+      if (result.role) {
+        await SecureStore.setItemAsync("userRole", result.role);
+      }
+      await SecureStore.setItemAsync("deviceId", deviceId);
+      await SecureStore.setItemAsync("deviceName", deviceName);
 
       if (result.role === 'technician') {
         showToast("Technician Verified!", () => router.replace("/(technician)"));

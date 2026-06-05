@@ -34,3 +34,8 @@ export const dispatchTicketToTechnician = async (ticketId: string) => {
   const response = await apiClient.post(`/tickets/${ticketId}/dispatch`);
   return response.data;
 };
+
+export const getTicketLogs = async (ticketId: string) => {
+  const response = await apiClient.get(`/tickets/${ticketId}/logs`);
+  return response.data;
+};

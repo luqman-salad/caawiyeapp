@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,49 +6,125 @@ import {
   TouchableOpacity,
   StatusBar,
   Dimensions,
+  ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { getTicketById } from '../../services/ticketService';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import Header from '../../components/Header';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function TechnicianTrackingScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const [ticket, setTicket] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTicket = async () => {
+    if (!id) return;
+    try {
+      const response = await getTicketById(id as string);
+      if (response.success) {
+        setTicket(response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching ticket in tracking:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTicket();
+    const interval = setInterval(fetchTicket, 5000);
+    return () => clearInterval(interval);
+  }, [id]);
+
+  const handleCall = () => {
+    if (ticket?.technicianPhone) {
+      Linking.openURL(`tel:${ticket.technicianPhone}`);
+    }
+  };
+
+  const handleMessage = () => {
+    if (ticket?.technicianPhone) {
+      Linking.openURL(`sms:${ticket.technicianPhone}`);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#00b047" />
+      </View>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>No active tracking details available.</Text>
+      </View>
+    );
+  }
+
+  // Get Initials for avatar
+  const getInitials = (name: string) => {
+    if (!name) return "Tech";
+    const parts = name.split(" ");
+    return parts.map(p => p[0]).join("").toUpperCase().slice(0, 2);
+  };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f1f5f9" />
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <Header title="Live Tracking" showBack={true} />
 
-      {/* --- MAP SIMULATION VIEWPORT BACKGROUND --- */}
+      {/* --- REAL GOOGLE MAP VIEWPORT BACKGROUND --- */}
       <View style={styles.mapCanvasBackground}>
-        {/* Vector Grid Overlay Blueprint Lines */}
-        <View style={styles.mapGridPatternHorizontal} />
-        <View style={styles.mapGridPatternHorizontal2} />
-        <View style={styles.mapGridPatternVertical} />
-        <View style={styles.mapGridPatternVertical2} />
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={StyleSheet.absoluteFill}
+          initialRegion={{
+            latitude: ticket.latitude || 2.0333,
+            longitude: ticket.longitude || 45.3500,
+            latitudeDelta: 0.03,
+            longitudeDelta: 0.03,
+          }}
+          customMapStyle={mapStyle}
+        >
+          {/* Customer Location Marker */}
+          <Marker
+            coordinate={{
+              latitude: ticket.latitude || 2.0333,
+              longitude: ticket.longitude || 45.3500,
+            }}
+            title="Your Location"
+            description={ticket.address || "Service Destination"}
+            pinColor="#ef4444"
+          />
 
-        {/* Tracking En Route Trajectory Dash Line */}
-        <View style={styles.trajectoryPathContainer}>
-          <View style={[styles.dashSegment, { transform: [{ rotate: '65deg' }] }]} />
-        </View>
-
-        {/* Dynamic En-Route Navigation Pointer Beacon */}
-        <View style={styles.navigationPointerBeacon}>
-          <Feather name="navigation" size={16} color="#ffffff" style={styles.pointerIconStyle} />
-        </View>
-
-        {/* FLOATING FLOOD HEADER OVERLAY */}
-        <SafeAreaView style={styles.floatingHeaderSafeArea} edges={['top']}>
-          <TouchableOpacity 
-            style={styles.floatingHeaderCard}
-            activeOpacity={0.8}
-            onPress={() => router.back()}
-          >
-            <Feather name="arrow-left" size={18} color="#0f172a" />
-            <Text style={styles.floatingHeaderTitle}>Technician is en route</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
+          {/* Technician Location Marker */}
+          {ticket.technicianLatitude && ticket.technicianLongitude && ticket.technicianLatitude !== 0 && (
+            <Marker
+              coordinate={{
+                latitude: ticket.technicianLatitude,
+                longitude: ticket.technicianLongitude,
+              }}
+              title={ticket.technicianName || "Technician"}
+              description="Last reported position"
+            >
+              <View style={styles.technicianMarker}>
+                <Feather name="truck" size={16} color="#ffffff" />
+              </View>
+            </Marker>
+          )}
+        </MapView>
       </View>
 
       {/* --- LIVE STATUS PANEL SHEET --- */}
@@ -58,10 +134,10 @@ export default function TechnicianTrackingScreen() {
 
         {/* Arrival ETA Summary Metadata */}
         <Text style={styles.etaLabelText}>Estimated Arrival</Text>
-        <Text style={styles.etaTimeText}>12 Minutes</Text>
+        <Text style={styles.etaTimeText}>{ticket.status === 'ON_THE_WAY' ? '12 Minutes' : 'Arrived'}</Text>
 
         <Text style={styles.etaDetailsSubText}>
-          <Text style={styles.boldNumbers}>0</Text> days  •  <Text style={styles.boldNumbers}>0</Text> hours  •  <Text style={styles.greenNumbers}>12</Text> mins remaining
+          <Text style={styles.boldNumbers}>0</Text> days  •  <Text style={styles.boldNumbers}>0</Text> hours  •  <Text style={styles.greenNumbers}>{ticket.status === 'ON_THE_WAY' ? '12' : '0'}</Text> mins remaining
         </Text>
 
         <View style={styles.panelDividerLine} />
@@ -69,16 +145,16 @@ export default function TechnicianTrackingScreen() {
         {/* Dispatch Technician Identity Card Layout */}
         <View style={styles.technicianIdentityCardRow}>
           <View style={styles.avatarCircleContainer}>
-            <Text style={styles.avatarInitialsText}>AS</Text>
+            <Text style={styles.avatarInitialsText}>{getInitials(ticket.technicianName || 'Technician')}</Text>
           </View>
 
           <View style={styles.technicianMetaTextColumn}>
-            <Text style={styles.technicianNameText}>Eng. Abdi Shakuur</Text>
+            <Text style={styles.technicianNameText}>{ticket.technicianName || 'Field Technician'}</Text>
             <View style={styles.ratingExpertiseBadgeRow}>
               <Feather name="star" size={14} color="#00b047" />
-              <Text style={styles.ratingNumberValue}>4.9</Text>
+              <Text style={styles.ratingNumberValue}>{ticket.technicianRating?.toFixed(1) || '5.0'}</Text>
               <Text style={styles.bulletSeparatorDot}>•</Text>
-              <Text style={styles.specializationTitleText}>Fiber Splicing Specialist</Text>
+              <Text style={styles.specializationTitleText}>{ticket.category || 'Specialist'}</Text>
             </View>
           </View>
         </View>
@@ -87,12 +163,22 @@ export default function TechnicianTrackingScreen() {
 
         {/* ACTION INTERACTION BUTTON PANEL CONTROL FOOTER */}
         <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.callButtonContainer} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={[styles.callButtonContainer, !ticket.technicianPhone && { backgroundColor: '#cbd5e0' }]} 
+            activeOpacity={0.8}
+            onPress={handleCall}
+            disabled={!ticket.technicianPhone}
+          >
             <Feather name="phone" size={16} color="#ffffff" style={{ marginRight: 8 }} />
             <Text style={styles.callButtonText}>Call</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.messageButtonContainer} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={[styles.messageButtonContainer, !ticket.technicianPhone && { backgroundColor: '#e2e8f0' }]} 
+            activeOpacity={0.8}
+            onPress={handleMessage}
+            disabled={!ticket.technicianPhone}
+          >
             <Feather name="message-square" size={16} color="#1e293b" style={{ marginRight: 8 }} />
             <Text style={styles.messageButtonText}>Message</Text>
           </TouchableOpacity>
@@ -101,12 +187,15 @@ export default function TechnicianTrackingScreen() {
         <TouchableOpacity 
           style={styles.progressPrimaryButton} 
           activeOpacity={0.8}
-          onPress={() => router.push('/(customer)/progress')}
+          onPress={() => router.push({
+            pathname: '/(customer)/progress',
+            params: { id: ticket.id }
+          })}
         >
           <Text style={styles.progressPrimaryButtonText}>View Work Progress</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -367,4 +456,82 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  technicianMarker: {
+    backgroundColor: '#00b047',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+
+const mapStyle = [
+  {
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#616161"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#ffffff"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#c9c9c9"
+      }
+    ]
+  }
+];

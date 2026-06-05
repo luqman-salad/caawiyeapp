@@ -21,6 +21,7 @@ export interface RequestLoginOtpPayload {
 export interface VerificationResult {
   success: boolean;
   token: string;
+  refreshToken: string;
   role: 'customer' | 'technician';
 }
 
@@ -103,6 +104,7 @@ export const authService = {
 
       // 2. Extract the access token STRICTLY from the data layout block
       const token = response.data?.data?.access_token;
+      const refreshToken = response.data?.data?.refresh_token;
       if (!token || typeof token !== 'string' || token.split('.').length !== 3) {
         throw new Error("Authentication failed: Server did not return a valid access token.");
       }
@@ -128,6 +130,7 @@ export const authService = {
       return {
         success: true,
         token: token,
+        refreshToken: refreshToken || '',
         role: normalizedRole === 'TECHNICIAN' ? 'technician' : 'customer'
       };
     } catch (error: any) {

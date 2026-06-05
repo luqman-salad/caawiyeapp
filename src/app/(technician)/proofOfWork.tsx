@@ -11,16 +11,20 @@ import {
   Platform,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import apiClient from '../../utils/apis';
+import Header from '../../components/Header';
 
 export default function ProofOfWorkScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const taskId = (params.id as string) || 'T001';
+  const [submitting, setSubmitting] = useState(false);
 
   // Form State Management
   const [completionNote, setCompletionNote] = useState('');
@@ -54,7 +58,7 @@ export default function ProofOfWorkScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!completionNote.trim()) {
       Alert.alert('Missing Info', 'Please add a completion note summarizing the work done.');
       return;
@@ -64,23 +68,57 @@ export default function ProofOfWorkScreen() {
       return;
     }
 
-    Alert.alert(
-      'Job Completed',
-      `Proof of work for Ticket #${taskId} has been submitted successfully!`,
-      [
-        {
-          text: 'Return to Dashboard',
-          onPress: () => router.dismissAll(), 
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('otp', otpCode);
+
+      if (afterPhoto) {
+        const uri = afterPhoto;
+        const uriParts = uri.split('/');
+        const fileName = uriParts[uriParts.length - 1];
+        const fileType = fileName.split('.').pop();
+
+        formData.append('after_photo', {
+          uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
+          name: fileName,
+          type: `image/${fileType}`,
+        } as any);
+      }
+
+      const response = await apiClient.post(`/tickets/${taskId}/complete`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
         },
-      ]
-    );
+      });
+
+      if (response.data?.success) {
+        Alert.alert(
+          'Job Completed',
+          `Proof of work for Ticket #${taskId} has been submitted successfully!`,
+          [
+            {
+              text: 'Return to Dashboard',
+              onPress: () => router.dismissAll(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', response.data?.message || 'Failed to submit completion.');
+      }
+    } catch (error: any) {
+      console.error("Complete ticket error:", error);
+      Alert.alert('Error', error.response?.data?.message || 'Invalid OTP code or file upload failed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const isFormValid = completionNote.trim().length > 0 && otpCode.length === 4;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <SafeAreaView style={styles.container}>
+      <Header title="Proof of Work" showBack={true} />
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -167,13 +205,19 @@ export default function ProofOfWorkScreen() {
       {/* FOOTER BAR ACTION DOCK */}
       <View style={styles.bottomDock}>
         <TouchableOpacity 
-          style={[styles.submitButton, !isFormValid && styles.submitButtonDisabled]} 
+          style={[styles.submitButton, (!isFormValid || submitting) && styles.submitButtonDisabled]} 
           onPress={handleSubmit}
-          disabled={!isFormValid}
+          disabled={!isFormValid || submitting}
           activeOpacity={0.8}
         >
-          <Feather name="check-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-          <Text style={styles.submitButtonText}>Submit Completion</Text>
+          {submitting ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Feather name="check-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.submitButtonText}>Submit Completion</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
