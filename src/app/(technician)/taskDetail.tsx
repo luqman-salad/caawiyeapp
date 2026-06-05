@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Linking,
-  ActivityIndicator,
+  StyleSheet, Text, View, TouchableOpacity, ScrollView, StatusBar, 
+  Linking, ActivityIndicator, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { getTicketById } from '../../services/ticketService';
+import { getTicketById, startTicket } from '../../services/ticketService';
 
-type TaskLifecycleStatus = 'UNACCEPTED' | 'ASSIGNED' | 'ON_THE_WAY' | 'IN_PROGRESS';
+type TaskLifecycleStatus = 'UNACCEPTED' | 'ASSIGNED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'DISPATCHED' | 'COMPLETED';
 
 export default function ModernTaskDetailsScreen() {
   const router = useRouter();
@@ -22,90 +16,81 @@ export default function ModernTaskDetailsScreen() {
   
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<TaskLifecycleStatus>('UNACCEPTED');
 
-  useEffect(() => {
-    const fetchTicket = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        const response = await getTicketById(id as string);
-        if (response.success) {
-          setTicket(response.data);
-          if (response.data.status) setCurrentStatus(response.data.status);
-        }
-      } catch (error) {
-        console.error("Error fetching ticket:", error);
-      } finally {
-        setLoading(false);
+  const refreshTicket = async () => {
+    if (!id) return;
+    try {
+      const response = await getTicketById(id as string);
+      if (response.success && response.data) {
+        setTicket(response.data);
+        setCurrentStatus(response.data.status as TaskLifecycleStatus);
       }
-    };
-    fetchTicket();
+    } catch (err) {
+      console.error("Refresh failed", err);
+    }
+  };
+
+  useEffect(() => {
+    refreshTicket().finally(() => setLoading(false));
   }, [id]);
 
   const handleCall = () => ticket?.phone && Linking.openURL(`tel:${ticket.phone}`);
   const handleSMS = () => ticket?.phone && Linking.openURL(`sms:${ticket.phone}`);
   
   const handleNavigation = () => {
-    if (ticket?.address) {
-      const encodedAddress = encodeURIComponent(ticket.address);
-      Linking.openURL(`maps://maps.apple.com/?q=${encodedAddress}`);
+    if (ticket?.address || ticket?.landmark) {
+      const location = encodeURIComponent(ticket.address || ticket.landmark);
+      Linking.openURL(`maps://maps.apple.com/?q=${location}`);
     }
   };
 
-  const handleStatusTransition = () => {
-    switch (currentStatus) {
-      case 'UNACCEPTED': setCurrentStatus('ASSIGNED'); break;
-      case 'ASSIGNED': setCurrentStatus('ON_THE_WAY'); break;
-      case 'ON_THE_WAY': setCurrentStatus('IN_PROGRESS'); break;
-      case 'IN_PROGRESS':
+  const handleStatusTransition = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    
+    try {
+      // API call for starting the job
+      if (currentStatus === 'ASSIGNED' || currentStatus === 'DISPATCHED') {
+        await startTicket(ticket.id);
+        await refreshTicket();
+      } 
+      // Navigation for completing the job
+      else if (currentStatus === 'IN_PROGRESS') {
         router.push({
           pathname: '/proofOfWork',
-          params: { id: ticket.id, customer: ticket.customerName }
+          params: { id: ticket.id, customer: ticket.customer_id }
         });
-        break;
+      }
+    } catch (error: any) {
+      console.error("Transition error:", error.response?.data || error);
+      Alert.alert("Update Failed", "Server rejected the action. Please check if the ticket state is valid.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const getButtonConfiguration = () => {
     switch (currentStatus) {
-      case 'UNACCEPTED': 
-        return { text: 'Confirm & Assign Task', icon: 'arrow-right-circle' as const };
-      case 'ASSIGNED': 
-        return { text: 'Mark as On the Way', icon: 'truck' as const };
-      case 'ON_THE_WAY': 
-        return { text: 'Mark as In Progress', icon: 'play-circle' as const };
-      case 'IN_PROGRESS': 
-        return { text: 'Mark as Completed', icon: 'check-square' as const };
-      default: 
-        // Fallback to prevent crash if status is unexpected
-        return { text: 'Invalid Status', icon: 'alert-circle' as const };
+      case 'UNACCEPTED': case 'DISPATCHED':
+        return { text: 'Confirm & Assign', icon: 'arrow-right-circle' as const };
+      case 'ASSIGNED': return { text: 'Start Job', icon: 'play-circle' as const };
+      case 'IN_PROGRESS': return { text: 'Complete Job', icon: 'check-square' as const };
+      default: return { text: 'Status: ' + currentStatus, icon: 'info' as const };
     }
   };
 
   const getStatusDisplayMeta = () => {
     switch (currentStatus) {
-      case 'UNACCEPTED': 
-        return { text: 'UNACCEPTED', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
-      case 'ASSIGNED': 
-        return { text: 'ASSIGNED', badgeStyle: styles.badgeAssigned, textStyle: styles.textAssigned };
-      case 'ON_THE_WAY': 
-        return { text: 'ON THE WAY', badgeStyle: styles.badgeOnTheWay, textStyle: styles.textOnTheWay };
-      case 'IN_PROGRESS': 
-        return { text: 'IN PROGRESS', badgeStyle: styles.badgeInProgress, textStyle: styles.textInProgress };
-      default: 
-        // Fallback for unexpected statuses
-        return { text: currentStatus || 'UNKNOWN', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
+      case 'DISPATCHED': return { text: 'DISPATCHED', badgeStyle: styles.badgeAssigned, textStyle: styles.textAssigned };
+      case 'ASSIGNED': return { text: 'ASSIGNED', badgeStyle: styles.badgeAssigned, textStyle: styles.textAssigned };
+      case 'IN_PROGRESS': return { text: 'IN PROGRESS', badgeStyle: styles.badgeInProgress, textStyle: styles.textInProgress };
+      default: return { text: currentStatus || 'UNKNOWN', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#00b047" />
-      </View>
-    );
-  }
+  if (loading) return <View style={styles.container}><ActivityIndicator size="large" color="#00b047" /></View>;
 
   const buttonConfig = getButtonConfiguration();
   const statusMeta = getStatusDisplayMeta();
@@ -125,17 +110,17 @@ export default function ModernTaskDetailsScreen() {
           <View style={styles.customerProfileHeaderRow}>
             <View style={styles.avatarGlassBlock}><Feather name="user" size={22} color="#00b047" /></View>
             <View style={styles.customerMetaTextCol}>
-              <Text style={styles.metaSecondaryLabel}>Customer Name</Text>
-              <Text style={styles.metaPrimaryValue}>{ticket?.customerName || 'N/A'}</Text>
+              <Text style={styles.metaSecondaryLabel}>Ticket Number</Text>
+              <Text style={styles.metaPrimaryValue}>{ticket?.ticket_number || 'N/A'}</Text>
             </View>
           </View>
           <View style={styles.dividerLine} />
           <View style={styles.inlineMetricsGrid}>
             <View style={styles.metricColumnHalf}>
-              <Text style={styles.metaSecondaryLabel}>Service Requested</Text>
+              <Text style={styles.metaSecondaryLabel}>Category</Text>
               <View style={styles.iconValueInlineRow}>
                 <Feather name="settings" size={14} color="#64748b" style={styles.inlineGapIcon} />
-                <Text style={styles.metaPrimaryValueSmall}>{ticket?.serviceType || 'N/A'}</Text>
+                <Text style={styles.metaPrimaryValueSmall}>{ticket?.category || 'N/A'}</Text>
               </View>
             </View>
           </View>
@@ -149,35 +134,40 @@ export default function ModernTaskDetailsScreen() {
         <View style={styles.premiumCard}>
           <View style={styles.cardSectionTitleHeaderRow}>
             <View style={[styles.miniHeaderIconBox, { backgroundColor: '#fef2f2' }]}><Feather name="map-pin" size={16} color="#ef4444" /></View>
-            <Text style={styles.sectionHeaderLabelText}>Site Location Address</Text>
+            <Text style={styles.sectionHeaderLabelText}>Site Location</Text>
           </View>
-          <Text style={styles.addressDisplayParagraph}>{ticket?.address}</Text>
+          <Text style={styles.addressDisplayParagraph}>{ticket?.landmark || 'No location specified'}</Text>
           <TouchableOpacity style={styles.primaryModernButton} onPress={handleNavigation}>
             <Feather name="navigation" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.primaryModernButtonText}>Launch Navigation Maps</Text>
+            <Text style={styles.primaryModernButtonText}>Launch Navigation</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.premiumCard}>
           <View style={styles.cardSectionTitleHeaderRow}>
             <View style={[styles.miniHeaderIconBox, { backgroundColor: '#eff6ff' }]}><Feather name="alert-circle" size={16} color="#2563eb" /></View>
-            <Text style={styles.sectionHeaderLabelText}>Job Scope Description</Text>
+            <Text style={styles.sectionHeaderLabelText}>Job Description</Text>
           </View>
           <Text style={styles.descriptionContextPara}>{ticket?.description}</Text>
         </View>
       </ScrollView>
 
       <View style={styles.persistentBottomDock}>
-        <TouchableOpacity style={styles.dockActionButtonCTA} onPress={handleStatusTransition}>
+        <TouchableOpacity 
+          style={[styles.dockActionButtonCTA, submitting && { opacity: 0.6 }]} 
+          onPress={handleStatusTransition}
+          disabled={submitting}
+        >
           <Feather name={buttonConfig.icon} size={18} color="#ffffff" style={{ marginRight: 8 }} />
-          <Text style={styles.dockActionButtonCTAText}>{buttonConfig.text}</Text>
+          <Text style={styles.dockActionButtonCTAText}>
+            {submitting ? 'Updating...' : buttonConfig.text}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-// PASTE YOUR ORIGINAL STYLES HERE
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 110 },

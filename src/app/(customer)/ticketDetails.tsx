@@ -44,6 +44,21 @@ export default function TicketDetailScreen() {
     fetchDetails();
   }, [id]);
 
+  const getStatusConfig = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'REPORTED':
+      return { text: 'Pending', color: '#e53e3e' }; // Red
+    case 'DISPATCHED':
+    case 'IN_PROGRESS':
+      return { text: 'In Progress', color: '#d97706' }; // Amber
+    case 'RESOLVED':
+    case 'COMPLETED':
+      return { text: 'Resolved', color: '#10b981' }; // Green
+    default:
+      return { text: status, color: '#718096' };
+  }
+};
+
   const handleDispatch = async () => {
     if (!ticket) return;
     setErrorMessage(null);

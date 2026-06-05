@@ -5,9 +5,6 @@ import * as SecureStore from 'expo-secure-store';
 export const apiClient = axios.create({
   baseURL: 'https://fsm.kamacaash.com/api/v1',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 apiClient.interceptors.request.use(async (config) => {
