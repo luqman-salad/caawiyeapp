@@ -35,8 +35,50 @@ export default function TicketDetailScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
+<<<<<<< HEAD
   const fetchDetails = async () => {
     if (!id) return;
+=======
+  useEffect(() => {
+    const fetchDetails = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const response = await getTicketById(id as string);
+        if (response.success) {
+          setTicket(response.data);
+        } else {
+          setErrorMessage(response.message || "Failed to load ticket");
+        }
+      } catch (err) {
+        setErrorMessage("Could not connect to server");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [id]);
+
+  const getStatusConfig = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'REPORTED':
+      return { text: 'Pending', color: '#e53e3e' }; // Red
+    case 'DISPATCHED':
+    case 'IN_PROGRESS':
+      return { text: 'In Progress', color: '#d97706' }; // Amber
+    case 'RESOLVED':
+    case 'COMPLETED':
+      return { text: 'Resolved', color: '#10b981' }; // Green
+    default:
+      return { text: status, color: '#718096' };
+  }
+};
+
+  const handleDispatch = async () => {
+    if (!ticket) return;
+    setErrorMessage(null);
+    setIsDispatching(true);
+>>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     try {
       const response = await getTicketById(id as string);
       if (response.success) {
