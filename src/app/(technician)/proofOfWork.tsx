@@ -1,43 +1,25 @@
-import React, { useState } from 'react';
-import {
-<<<<<<< HEAD
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Image,
-  ActivityIndicator,
-=======
-  StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput,
-  StatusBar, KeyboardAvoidingView, Platform, Image, ActivityIndicator,
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-<<<<<<< HEAD
-import apiClient from '../../utils/apis';
-import Header from '../../components/Header';
-=======
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView, Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet, Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { completeTicket } from '../../services/ticketService';
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
 
 export default function ProofOfWorkScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-<<<<<<< HEAD
-  const taskId = (params.id as string) || 'T001';
-  const [submitting, setSubmitting] = useState(false);
-=======
   const taskId = (params.id as string);
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
 
   const [completionNote, setCompletionNote] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -61,13 +43,8 @@ export default function ProofOfWorkScreen() {
   };
 
   const handleSubmit = async () => {
-<<<<<<< HEAD
-    if (!completionNote.trim()) {
-      Alert.alert('Missing Info', 'Please add a completion note summarizing the work done.');
-=======
     if (!afterPhoto) {
       setErrorMessage("Please select an 'After' photo of the completed work.");
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
       return;
     }
     if (otpCode.length !== 4) {
@@ -76,51 +53,9 @@ export default function ProofOfWorkScreen() {
     }
 
     setSubmitting(true);
-<<<<<<< HEAD
-    try {
-      const formData = new FormData();
-      formData.append('otp', otpCode);
-
-      if (afterPhoto) {
-        const uri = afterPhoto;
-        const uriParts = uri.split('/');
-        const fileName = uriParts[uriParts.length - 1];
-        const fileType = fileName.split('.').pop();
-
-        formData.append('after_photo', {
-          uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
-          name: fileName,
-          type: `image/${fileType}`,
-        } as any);
-      }
-
-      const response = await apiClient.post(`/tickets/${taskId}/complete`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data?.success) {
-        Alert.alert(
-          'Job Completed',
-          `Proof of work for Ticket #${taskId} has been submitted successfully!`,
-          [
-            {
-              text: 'Return to Dashboard',
-              onPress: () => router.dismissAll(),
-            },
-          ]
-        );
-      } else {
-        Alert.alert('Error', response.data?.message || 'Failed to submit completion.');
-      }
-    } catch (error: any) {
-      console.error("Complete ticket error:", error);
-      Alert.alert('Error', error.response?.data?.message || 'Invalid OTP code or file upload failed.');
-=======
     setErrorMessage(null);
     setSuccessMessage(null);
-    
+
     try {
       await completeTicket(taskId, otpCode, afterPhoto, completionNote);
       setSuccessMessage("Work submitted successfully!");
@@ -130,7 +65,6 @@ export default function ProofOfWorkScreen() {
       console.log("FULL ERROR RESPONSE:", JSON.stringify(err.response?.data, null, 2));
       const msg = err.response?.data?.message || "Failed to submit. Please try again.";
       setErrorMessage(msg);
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     } finally {
       setSubmitting(false);
     }
@@ -138,49 +72,16 @@ export default function ProofOfWorkScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-<<<<<<< HEAD
-      <Header title="Proof of Work" showBack={true} />
-
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* PHOTO COMPONENT ROW */}
-          <View style={styles.photoGrid}>
-            {/* Before Photo Card */}
-            <View style={styles.photoCard}>
-              <Text style={styles.cardLabel}>Before Photo</Text>
-              <TouchableOpacity 
-                style={[styles.dashedCaptureBox, beforePhoto && styles.activeCaptureBox]} 
-                onPress={() => handlePickImage('before')}
-                activeOpacity={0.7}
-              >
-                {beforePhoto ? (
-                  <Image source={{ uri: beforePhoto }} style={styles.previewImage} />
-                ) : (
-                  <>
-                    <Feather name="image" size={28} color="#94a3b8" />
-                    <Text style={styles.captureBoxText}>Select Photo</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-=======
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Text style={styles.screenTitle}>Proof of Work</Text>
-          
+
           {/* Error Banner */}
           {errorMessage && (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
               <Text style={styles.errorBannerText}>{errorMessage}</Text>
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
             </View>
           )}
 
@@ -229,29 +130,15 @@ export default function ProofOfWorkScreen() {
       </KeyboardAvoidingView>
 
       <View style={styles.bottomDock}>
-        <TouchableOpacity 
-<<<<<<< HEAD
-          style={[styles.submitButton, (!isFormValid || submitting) && styles.submitButtonDisabled]} 
-          onPress={handleSubmit}
-          disabled={!isFormValid || submitting}
-          activeOpacity={0.8}
-=======
-          style={[styles.submitButton, submitting && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.submitButton, submitting && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={submitting}
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
         >
           {submitting ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-<<<<<<< HEAD
-            <>
-              <Feather name="check-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.submitButtonText}>Submit Completion</Text>
-            </>
-=======
             <Text style={styles.submitButtonText}>Submit Completion</Text>
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
           )}
         </TouchableOpacity>
       </View>

@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { getTicketById } from '../../services/ticketService';
-import Header from '../../components/Header';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Header from '../../components/Header';
+import { getTicketById } from '../../services/ticketService';
 
 interface TicketData {
   id: string;
@@ -35,50 +35,8 @@ export default function TicketDetailScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
-<<<<<<< HEAD
   const fetchDetails = async () => {
     if (!id) return;
-=======
-  useEffect(() => {
-    const fetchDetails = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        const response = await getTicketById(id as string);
-        if (response.success) {
-          setTicket(response.data);
-        } else {
-          setErrorMessage(response.message || "Failed to load ticket");
-        }
-      } catch (err) {
-        setErrorMessage("Could not connect to server");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDetails();
-  }, [id]);
-
-  const getStatusConfig = (status: string) => {
-  switch (status.toUpperCase()) {
-    case 'REPORTED':
-      return { text: 'Pending', color: '#e53e3e' }; // Red
-    case 'DISPATCHED':
-    case 'IN_PROGRESS':
-      return { text: 'In Progress', color: '#d97706' }; // Amber
-    case 'RESOLVED':
-    case 'COMPLETED':
-      return { text: 'Resolved', color: '#10b981' }; // Green
-    default:
-      return { text: status, color: '#718096' };
-  }
-};
-
-  const handleDispatch = async () => {
-    if (!ticket) return;
-    setErrorMessage(null);
-    setIsDispatching(true);
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     try {
       const response = await getTicketById(id as string);
       if (response.success) {
@@ -95,7 +53,7 @@ export default function TicketDetailScreen() {
 
   useEffect(() => {
     fetchDetails();
-    
+
     // Poll for status updates if ticket is in reporting or dispatching state
     const interval = setInterval(() => {
       if (ticket && (ticket.status === 'REPORTED' || ticket.status === 'AUTO_DISPATCHING')) {
@@ -142,151 +100,151 @@ export default function TicketDetailScreen() {
       <Header title="Ticket Details" showBack={true} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-      {errorMessage && (
-        <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
-          <Text style={styles.errorBannerText}>{errorMessage}</Text>
-        </View>
-      )}
-
-      {/* Main Title Block */}
-      <View style={styles.header}>
-        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-          <View style={[styles.statusDot, { backgroundColor: statusStyle.text }]} />
-          <Text style={[styles.statusText, { color: statusStyle.text }]}>{ticket.status}</Text>
-        </View>
-        <Text style={styles.title}>{ticket.title}</Text>
-        <Text style={styles.ticketNumber}>Reference ID: #{ticket.ticket_number}</Text>
-      </View>
-
-      {/* Description Card */}
-      <View style={styles.card}>
-        <Text style={styles.sectionHeading}>Description</Text>
-        <Text style={styles.descriptionText}>{ticket.description}</Text>
-        
-        <View style={styles.gridRow}>
-          <View style={styles.gridCol}>
-            <Text style={styles.metaLabel}>Category</Text>
-            <Text style={styles.metaValue}>{ticket.category}</Text>
+        {errorMessage && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
           </View>
-          <View style={styles.gridCol}>
-            <Text style={styles.metaLabel}>Priority</Text>
-            <Text style={[styles.metaValue, ticket.priority === 'HIGH' && { color: '#ef4444' }]}>
-              {ticket.priority}
-            </Text>
-          </View>
-        </View>
-        
-        {ticket.landmark ? (
-          <View style={{ marginTop: 12 }}>
-            <Text style={styles.metaLabel}>Landmark</Text>
-            <Text style={styles.metaValue}>{ticket.landmark}</Text>
-          </View>
-        ) : null}
-      </View>
+        )}
 
-      {/* Passcode OTP Card */}
-      <View style={styles.otpCard}>
-        <Text style={styles.otpLabel}>Verification Code (OTP)</Text>
-        <View style={styles.passcodeRow}>
-          {ticket.otp_code.split('').map((char, index) => (
-            <View key={index} style={styles.passcodeBox}>
-              <Text style={styles.passcodeChar}>{char}</Text>
+        {/* Main Title Block */}
+        <View style={styles.header}>
+          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusStyle.text }]} />
+            <Text style={[styles.statusText, { color: statusStyle.text }]}>{ticket.status}</Text>
+          </View>
+          <Text style={styles.title}>{ticket.title}</Text>
+          <Text style={styles.ticketNumber}>Reference ID: #{ticket.ticket_number}</Text>
+        </View>
+
+        {/* Description Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionHeading}>Description</Text>
+          <Text style={styles.descriptionText}>{ticket.description}</Text>
+
+          <View style={styles.gridRow}>
+            <View style={styles.gridCol}>
+              <Text style={styles.metaLabel}>Category</Text>
+              <Text style={styles.metaValue}>{ticket.category}</Text>
             </View>
-          ))}
-        </View>
-        <Text style={styles.otpHint}>Please provide this secure code to the technician upon arrival to authorize completion.</Text>
-      </View>
-
-      {/* Dispatching States & Map Tracking */}
-      {(ticket.status === 'REPORTED' || ticket.status === 'AUTO_DISPATCHING') ? (
-        <View style={styles.searchingContainer}>
-          <ActivityIndicator size="small" color="#10b981" />
-          <Text style={styles.searchingText}>Finding Nearest Technician...</Text>
-        </View>
-      ) : ticket.technician_id ? (
-        <View style={styles.dispatchCard}>
-          <Text style={styles.sectionHeading}>Assigned Professional</Text>
-          
-          <View style={styles.techDetailsRow}>
-            <View style={styles.techAvatar}>
-              <Feather name="user" size={20} color="#00b047" />
+            <View style={styles.gridCol}>
+              <Text style={styles.metaLabel}>Priority</Text>
+              <Text style={[styles.metaValue, ticket.priority === 'HIGH' && { color: '#ef4444' }]}>
+                {ticket.priority}
+              </Text>
             </View>
-            <View style={styles.techMeta}>
-              <Text style={styles.techName}>{ticket.technicianName || 'Field Technician'}</Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={14} color="#f59e0b" style={{ marginRight: 4 }} />
-                <Text style={styles.techSubText}>{ticket.technicianRating?.toFixed(1) || '5.0'} Rating</Text>
+          </View>
+
+          {ticket.landmark ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.metaLabel}>Landmark</Text>
+              <Text style={styles.metaValue}>{ticket.landmark}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Passcode OTP Card */}
+        <View style={styles.otpCard}>
+          <Text style={styles.otpLabel}>Verification Code (OTP)</Text>
+          <View style={styles.passcodeRow}>
+            {ticket.otp_code.split('').map((char, index) => (
+              <View key={index} style={styles.passcodeBox}>
+                <Text style={styles.passcodeChar}>{char}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.otpHint}>Please provide this secure code to the technician upon arrival to authorize completion.</Text>
+        </View>
+
+        {/* Dispatching States & Map Tracking */}
+        {(ticket.status === 'REPORTED' || ticket.status === 'AUTO_DISPATCHING') ? (
+          <View style={styles.searchingContainer}>
+            <ActivityIndicator size="small" color="#10b981" />
+            <Text style={styles.searchingText}>Finding Nearest Technician...</Text>
+          </View>
+        ) : ticket.technician_id ? (
+          <View style={styles.dispatchCard}>
+            <Text style={styles.sectionHeading}>Assigned Professional</Text>
+
+            <View style={styles.techDetailsRow}>
+              <View style={styles.techAvatar}>
+                <Feather name="user" size={20} color="#00b047" />
+              </View>
+              <View style={styles.techMeta}>
+                <Text style={styles.techName}>{ticket.technicianName || 'Field Technician'}</Text>
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={14} color="#f59e0b" style={{ marginRight: 4 }} />
+                  <Text style={styles.techSubText}>{ticket.technicianRating?.toFixed(1) || '5.0'} Rating</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Embedded Mini Map Preview */}
-          <View style={styles.miniMapContainer}>
-            <MapView
-              provider={PROVIDER_GOOGLE}
-              style={StyleSheet.absoluteFill}
-              region={{
-                latitude: ticket.latitude || 2.0333,
-                longitude: ticket.longitude || 45.3500,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              }}
-              customMapStyle={mapStyle}
-              zoomEnabled={false}
-              scrollEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Marker
-                coordinate={{
+            {/* Embedded Mini Map Preview */}
+            <View style={styles.miniMapContainer}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={StyleSheet.absoluteFill}
+                region={{
                   latitude: ticket.latitude || 2.0333,
                   longitude: ticket.longitude || 45.3500,
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
                 }}
-                pinColor="#ef4444"
-              />
-              {ticket.technicianLatitude && ticket.technicianLongitude && ticket.technicianLatitude !== 0 && (
+                customMapStyle={mapStyle}
+                zoomEnabled={false}
+                scrollEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
                 <Marker
                   coordinate={{
-                    latitude: ticket.technicianLatitude,
-                    longitude: ticket.technicianLongitude,
+                    latitude: ticket.latitude || 2.0333,
+                    longitude: ticket.longitude || 45.3500,
                   }}
-                  pinColor="#00b047"
+                  pinColor="#ef4444"
                 />
-              )}
-            </MapView>
-          </View>
+                {ticket.technicianLatitude && ticket.technicianLongitude && ticket.technicianLatitude !== 0 && (
+                  <Marker
+                    coordinate={{
+                      latitude: ticket.technicianLatitude,
+                      longitude: ticket.technicianLongitude,
+                    }}
+                    pinColor="#00b047"
+                  />
+                )}
+              </MapView>
+            </View>
 
-          <TouchableOpacity 
-            style={styles.trackButton} 
-            activeOpacity={0.8}
-            onPress={() => router.push({
-              pathname: '/(customer)/tracking',
-              params: { id: ticket.id }
-            })}
-          >
-            <Feather name="navigation" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.trackButtonText}>Track Live Location</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+            <TouchableOpacity
+              style={styles.trackButton}
+              activeOpacity={0.8}
+              onPress={() => router.push({
+                pathname: '/(customer)/tracking',
+                params: { id: ticket.id }
+              })}
+            >
+              <Feather name="navigation" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.trackButtonText}>Track Live Location</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: '#f8fafc',
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  centered: { 
-    flex: 1, 
-    justifyContent: 'center', 
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff'
   },
@@ -312,7 +270,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
-  header: { 
+  header: {
     marginVertical: 20,
   },
   statusBadge: {
@@ -335,24 +293,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
   },
-  title: { 
-    fontSize: 22, 
-    fontWeight: '800', 
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
     color: '#0f172a',
     lineHeight: 28,
   },
-  ticketNumber: { 
-    fontSize: 13, 
-    color: '#64748b', 
+  ticketNumber: {
+    fontSize: 13,
+    color: '#64748b',
     marginTop: 6,
     fontWeight: '600'
   },
-  card: { 
-    backgroundColor: '#ffffff', 
-    padding: 20, 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    borderColor: '#f1f5f9', 
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -385,18 +343,18 @@ const styles = StyleSheet.create({
   gridCol: {
     flex: 1,
   },
-  metaLabel: { 
-    fontSize: 11, 
-    fontWeight: '700', 
-    color: '#94a3b8', 
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94a3b8',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  metaValue: { 
-    fontSize: 14, 
-    color: '#0f172a', 
-    marginTop: 4, 
-    fontWeight: '700' 
+  metaValue: {
+    fontSize: 14,
+    color: '#0f172a',
+    marginTop: 4,
+    fontWeight: '700'
   },
   otpCard: {
     backgroundColor: '#ffffff',
@@ -440,9 +398,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#10b981',
   },
-  otpHint: { 
-    fontSize: 12, 
-    color: '#64748b', 
+  otpHint: {
+    fontSize: 12,
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 18,
     fontWeight: '500',
@@ -464,21 +422,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
   },
-  searchingContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 18, 
-    backgroundColor: '#fffbeb', 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    borderColor: '#fef3c7' 
+  searchingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    backgroundColor: '#fffbeb',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fef3c7'
   },
-  searchingText: { 
-    color: '#b45309', 
-    fontSize: 14, 
-    fontWeight: '800', 
-    marginLeft: 10 
+  searchingText: {
+    color: '#b45309',
+    fontSize: 14,
+    fontWeight: '800',
+    marginLeft: 10
   },
   dispatchCard: {
     backgroundColor: '#ffffff',
@@ -492,24 +450,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  techDetailsRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 16, 
-    padding: 12, 
-    backgroundColor: '#f8fafc', 
-    borderRadius: 12, 
-    borderWidth: 1, 
-    borderColor: '#e2e8f0' 
+  techDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
-  techAvatar: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: '#e6f7ed', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 12 
+  techAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e6f7ed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
   },
   techMeta: { flex: 1 },
   techName: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
@@ -527,18 +485,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
-  trackButton: { 
-    backgroundColor: '#10b981', 
-    paddingVertical: 14, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  trackButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     flexDirection: 'row',
   },
-  trackButtonText: { 
-    color: '#ffffff', 
-    fontSize: 15, 
-    fontWeight: '800' 
+  trackButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800'
   }
 });
 

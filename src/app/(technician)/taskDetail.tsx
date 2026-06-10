@@ -1,40 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import Header from '@/components/Header';
+import apiClient from '@/utils/apis';
+import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-<<<<<<< HEAD
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
+  ActivityIndicator, Alert,
   Linking,
-  ActivityIndicator,
-  Alert,
-  Platform,
-=======
-  StyleSheet, Text, View, TouchableOpacity, ScrollView, StatusBar, 
-  Linking, ActivityIndicator, Alert
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
+  ScrollView,
+  StyleSheet, Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-<<<<<<< HEAD
-import { getTicketById } from '../../services/ticketService';
-import { apiClient } from '../../utils/apis';
-import Header from '../../components/Header';
-
-type TaskLifecycleStatus = 'UNACCEPTED' | 'AUTO_DISPATCHING' | 'ASSIGNED' | 'DISPATCHED' | 'ON_THE_WAY' | 'IN_PROGRESS';
-=======
 import { getTicketById, startTicket } from '../../services/ticketService';
 
-type TaskLifecycleStatus = 'UNACCEPTED' | 'ASSIGNED' | 'ON_THE_WAY' | 'IN_PROGRESS' | 'DISPATCHED' | 'COMPLETED';
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
+type TaskLifecycleStatus = 'UNACCEPTED' | 'ASSIGNED' | 'ON_THE_WAY' | 'AUTO_DISPATCHING' | 'IN_PROGRESS' | 'DISPATCHED' | 'COMPLETED';
 
 export default function ModernTaskDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  
+
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -60,47 +45,24 @@ export default function ModernTaskDetailsScreen() {
 
   const handleCall = () => ticket?.customerPhone && Linking.openURL(`tel:${ticket.customerPhone}`);
   const handleSMS = () => ticket?.customerPhone && Linking.openURL(`sms:${ticket.customerPhone}`);
-  
+
   const handleNavigation = () => {
-<<<<<<< HEAD
-    if (ticket?.address) {
-      const encodedAddress = encodeURIComponent(ticket.address);
-      const url = Platform.OS === 'ios'
-        ? `maps://maps.apple.com/?q=${encodedAddress}`
-        : `geo:0,0?q=${encodedAddress}`;
-      Linking.openURL(url).catch((err) => {
-        console.error("Failed to open maps:", err);
-        Alert.alert("Maps Error", "Could not open map application on your device.");
-      });
-=======
     if (ticket?.address || ticket?.landmark) {
       const location = encodeURIComponent(ticket.address || ticket.landmark);
       Linking.openURL(`maps://maps.apple.com/?q=${location}`);
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     }
   };
 
   const handleStatusTransition = async () => {
-<<<<<<< HEAD
-    if (updating || !ticket) return;
-    
-    // Once accepted, the next and only status is Complete (via proof of work screen)
-    if (currentStatus === 'DISPATCHED' || currentStatus === 'ASSIGNED' || currentStatus === 'ON_THE_WAY' || currentStatus === 'IN_PROGRESS') {
-      router.push({
-        pathname: '/(technician)/proofOfWork',
-        params: { id: ticket.id, customer: ticket.customerName }
-      });
-      return;
-=======
     if (submitting) return;
     setSubmitting(true);
-    
+
     try {
       // API call for starting the job
       if (currentStatus === 'ASSIGNED' || currentStatus === 'DISPATCHED') {
         await startTicket(ticket.id);
         await refreshTicket();
-      } 
+      }
       // Navigation for completing the job
       else if (currentStatus === 'IN_PROGRESS') {
         router.push({
@@ -113,7 +75,6 @@ export default function ModernTaskDetailsScreen() {
       Alert.alert("Update Failed", "Server rejected the action. Please check if the ticket state is valid.");
     } finally {
       setSubmitting(false);
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     }
 
     setUpdating(true);
@@ -137,7 +98,7 @@ export default function ModernTaskDetailsScreen() {
 
   const handleReject = async () => {
     if (updating || !ticket) return;
-    
+
     Alert.alert(
       "Reject Task Offer",
       "Are you sure you want to reject this task? It will be re-assigned to another technician.",
@@ -171,46 +132,20 @@ export default function ModernTaskDetailsScreen() {
 
   const getButtonConfiguration = () => {
     switch (currentStatus) {
-<<<<<<< HEAD
-      case 'UNACCEPTED': 
-      case 'AUTO_DISPATCHING': 
-        return { text: 'Confirm & Accept Task', icon: 'arrow-right-circle' as const };
-      case 'ASSIGNED': 
-      case 'DISPATCHED': 
-      case 'ON_THE_WAY': 
-      case 'IN_PROGRESS': 
-        return { text: 'Mark as Completed', icon: 'check-square' as const };
-      default: 
-        return { text: 'Task Completed', icon: 'alert-circle' as const };
-=======
       case 'UNACCEPTED': case 'DISPATCHED':
         return { text: 'Confirm & Assign', icon: 'arrow-right-circle' as const };
       case 'ASSIGNED': return { text: 'Start Job', icon: 'play-circle' as const };
       case 'IN_PROGRESS': return { text: 'Complete Job', icon: 'check-square' as const };
       default: return { text: 'Status: ' + currentStatus, icon: 'info' as const };
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     }
   };
 
   const getStatusDisplayMeta = () => {
     switch (currentStatus) {
-<<<<<<< HEAD
-      case 'UNACCEPTED': 
-      case 'AUTO_DISPATCHING': 
-        return { text: 'OFFER RECEIVED', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
-      case 'ASSIGNED': 
-      case 'DISPATCHED': 
-      case 'ON_THE_WAY': 
-      case 'IN_PROGRESS': 
-        return { text: 'ACCEPTED / WORK IN PROGRESS', badgeStyle: styles.badgeInProgress, textStyle: styles.textInProgress };
-      default: 
-        return { text: currentStatus || 'UNKNOWN', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
-=======
       case 'DISPATCHED': return { text: 'DISPATCHED', badgeStyle: styles.badgeAssigned, textStyle: styles.textAssigned };
       case 'ASSIGNED': return { text: 'ASSIGNED', badgeStyle: styles.badgeAssigned, textStyle: styles.textAssigned };
       case 'IN_PROGRESS': return { text: 'IN PROGRESS', badgeStyle: styles.badgeInProgress, textStyle: styles.textInProgress };
       default: return { text: currentStatus || 'UNKNOWN', badgeStyle: styles.badgeUnaccepted, textStyle: styles.textUnaccepted };
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
     }
   };
 
@@ -250,15 +185,15 @@ export default function ModernTaskDetailsScreen() {
           </View>
           <View style={styles.dividerLine} />
           <View style={styles.communicationActionTray}>
-            <TouchableOpacity 
-              style={[styles.trayButtonSecondary, !ticket?.customerPhone && { opacity: 0.5 }]} 
+            <TouchableOpacity
+              style={[styles.trayButtonSecondary, !ticket?.customerPhone && { opacity: 0.5 }]}
               onPress={handleCall}
               disabled={!ticket?.customerPhone}
             >
               <Text style={styles.trayButtonSecondaryText}>Voice Call</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.trayButtonSecondary, !ticket?.customerPhone && { opacity: 0.5 }]} 
+            <TouchableOpacity
+              style={[styles.trayButtonSecondary, !ticket?.customerPhone && { opacity: 0.5 }]}
               onPress={handleSMS}
               disabled={!ticket?.customerPhone}
             >
@@ -272,11 +207,7 @@ export default function ModernTaskDetailsScreen() {
             <View style={[styles.miniHeaderIconBox, { backgroundColor: '#fef2f2' }]}><Feather name="map-pin" size={16} color="#ef4444" /></View>
             <Text style={styles.sectionHeaderLabelText}>Site Location</Text>
           </View>
-<<<<<<< HEAD
-          <Text style={styles.addressDisplayParagraph}>{ticket?.address || 'No address provided'}</Text>
-=======
           <Text style={styles.addressDisplayParagraph}>{ticket?.landmark || 'No location specified'}</Text>
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
           <TouchableOpacity style={styles.primaryModernButton} onPress={handleNavigation}>
             <Feather name="navigation" size={16} color="#ffffff" style={{ marginRight: 8 }} />
             <Text style={styles.primaryModernButtonText}>Launch Navigation</Text>
@@ -293,36 +224,8 @@ export default function ModernTaskDetailsScreen() {
       </ScrollView>
 
       <View style={styles.persistentBottomDock}>
-<<<<<<< HEAD
-        {updating ? (
-          <ActivityIndicator size="small" color="#00b047" style={{ paddingVertical: 12 }} />
-        ) : (currentStatus === 'AUTO_DISPATCHING' || currentStatus === 'UNACCEPTED') ? (
-          <View style={styles.offerButtonRow}>
-            <TouchableOpacity 
-              style={[styles.dockActionButtonCTA, { flex: 1, backgroundColor: '#00b047', marginRight: 8 }]} 
-              onPress={handleStatusTransition}
-            >
-              <Feather name={buttonConfig.icon} size={18} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.dockActionButtonCTAText}>Accept</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.dockActionButtonCTA, { flex: 1, backgroundColor: '#ef4444' }]} 
-              onPress={handleReject}
-            >
-              <Feather name="x-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.dockActionButtonCTAText}>Reject</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.dockActionButtonCTA} onPress={handleStatusTransition}>
-            <Feather name={buttonConfig.icon} size={18} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.dockActionButtonCTAText}>{buttonConfig.text}</Text>
-          </TouchableOpacity>
-        )}
-=======
-        <TouchableOpacity 
-          style={[styles.dockActionButtonCTA, submitting && { opacity: 0.6 }]} 
+        <TouchableOpacity
+          style={[styles.dockActionButtonCTA, submitting && { opacity: 0.6 }]}
           onPress={handleStatusTransition}
           disabled={submitting}
         >
@@ -331,7 +234,6 @@ export default function ModernTaskDetailsScreen() {
             {submitting ? 'Updating...' : buttonConfig.text}
           </Text>
         </TouchableOpacity>
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
       </View>
     </SafeAreaView>
   );
@@ -370,10 +272,10 @@ const styles = StyleSheet.create({
   primaryModernButton: { backgroundColor: '#00b047', borderRadius: 12, height: 46, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   primaryModernButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
   descriptionContextPara: { fontSize: 14, color: '#475569', fontWeight: '500', lineHeight: 22 },
-  
+
   persistentBottomDock: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#ffffff', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
   dockActionButtonCTA: { backgroundColor: '#00b047', borderRadius: 14, height: 52, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   dockActionButtonCTAText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
-  
+
   offerButtonRow: { flexDirection: 'row', justifyContent: 'space-between' }
 });

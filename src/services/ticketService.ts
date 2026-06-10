@@ -35,21 +35,19 @@ export const startTicket = async (id: string) => {
   return response.data;
 };
 
-<<<<<<< HEAD
 export const getTicketLogs = async (ticketId: string) => {
   const response = await apiClient.get(`/tickets/${ticketId}/logs`);
   return response.data;
 };
-=======
 
 
 export const completeTicket = async (id: string, otp: string, photoUri: string, note: string) => {
   const formData = new FormData();
-  
+
   // Based on your previous errors, 'code' is likely the correct key
   formData.append('otp', otp);
   formData.append('note', note);
-  
+
   // Ensure the URI is properly formatted for the platform
   formData.append('after_photo', {
     uri: Platform.OS === 'android' ? photoUri : photoUri.replace('file://', ''),
@@ -64,7 +62,7 @@ export const completeTicket = async (id: string, otp: string, photoUri: string, 
       'Content-Type': 'multipart/form-data',
     },
   });
-  
+
   return response.data;
 };
 
@@ -83,4 +81,3 @@ export const dispatchTicketToTechnician = async (ticketId: string) => {
 };
 
 
->>>>>>> 5b40cab98d54049387f3a78e1689ad5b109c95db
