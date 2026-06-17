@@ -23,7 +23,6 @@ try {
   console.log("Audio native module not found, alarm loop disabled.");
 }
 
-// --- Updated Types to match API ---
 export interface TechnicianTicket {
   id: string;
   ticket_number: string;
@@ -67,7 +66,6 @@ export default function Dashboard() {
     }, [fetchData])
   );
 
-  // Poll for tasks only when online
   useEffect(() => {
     if (!isOnline) return;
     const interval = setInterval(() => {
@@ -76,8 +74,9 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [isOnline, fetchData]);
 
-  // Handle sound notification loop for tasks in AUTO_DISPATCHING status
-  const hasPendingTask = tasks.some(task => task.status === 'AUTO_DISPATCHING');
+  // Find the first available auto-dispatching offer item
+  const incomingOffer = tasks.find(task => task.status === 'AUTO_DISPATCHING');
+  const hasPendingTask = !!incomingOffer;
 
   useEffect(() => {
     let activeSound: any = null;
@@ -128,23 +127,20 @@ export default function Dashboard() {
     };
   }, [hasPendingTask, isOnline]);
 
-  // Handle manual duty switch toggling
   const handleToggleStatus = async () => {
     if (toggling) return;
     setToggling(true);
     try {
       const nextStatus = isOnline ? 'OFFLINE' : 'ONLINE';
-      let lat = 2.0333; // Default Mogadishu
+      let lat = 2.0333; 
       let lon = 45.3500;
 
       if (nextStatus === 'ONLINE') {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           try {
-            // Try getting cached position first (extremely fast)
             let loc = await Location.getLastKnownPositionAsync({});
             if (!loc) {
-              // Fallback to active query with balanced accuracy
               loc = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.Balanced,
               });
@@ -192,11 +188,7 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" backgroundColor="#00b047" />
 
       {/* --- Fullscreen Off-Duty Block Modal --- */}
-      <Modal
-        visible={!isOnline && !loading}
-        animationType="slide"
-        transparent={false}
-      >
+      <Modal visible={!isOnline && !loading} animationType="slide" transparent={false}>
         <SafeAreaView style={styles.modalContainer}>
           <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
           <View style={styles.modalContent}>
@@ -207,7 +199,6 @@ export default function Dashboard() {
             <Text style={styles.modalSubtitle}>
               Toggle your status to online in order to view active customer tickets and begin work.
             </Text>
-
             <TouchableOpacity
               style={[styles.modalButton, toggling && styles.modalButtonDisabled]}
               onPress={handleToggleStatus}
@@ -225,6 +216,49 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* --- Incoming Urgent Offer Popup Modal --- */}
+      <Modal visible={isOnline && hasPendingTask} animationType="fade" transparent={true}>
+        <View style={styles.offerOverlay}>
+          <View style={styles.offerAlertBox}>
+            <View style={styles.pulseIconContainer}>
+              <Feather name="bell" size={32} color="#ffffff" />
+            </View>
+            
+            <Text style={styles.offerAlertTitle}>New Offer Received!</Text>
+            <Text style={styles.offerAlertSubtitle}>An urgent ticket is nearby and requests tracking assignment confirmation.</Text>
+            
+            {incomingOffer && (
+              <View style={styles.offerCardPreview}>
+                <View style={styles.offerPreviewRow}>
+                  <Text style={styles.offerTicketNum}>{incomingOffer.ticket_number}</Text>
+                  <View style={[styles.priorityPill, getPriorityStyles(incomingOffer.priority).container]}>
+                    <Text style={[styles.priorityPillText, getPriorityStyles(incomingOffer.priority).text]}>{incomingOffer.priority}</Text>
+                  </View>
+                </View>
+                <Text style={styles.offerTicketTitle}>{incomingOffer.title}</Text>
+                <Text style={styles.offerTicketCategory}>Category: {incomingOffer.category}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={styles.offerAcceptButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (incomingOffer) {
+                  router.push({
+                    pathname: '/(technician)/taskDetail',
+                    params: { id: incomingOffer.id }
+                  });
+                }
+              }}
+            >
+              <Feather name="check-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.offerAcceptButtonText}>View the Offer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* --- Main Dashboard View --- */}
@@ -251,7 +285,6 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Uber style Switch Indicator */}
         <View style={styles.centeredToggleContainer}>
           <TouchableOpacity 
             style={[
@@ -388,124 +421,38 @@ const styles = StyleSheet.create({
   profileRightButton: { padding: 4 },
   
   // Uber Switch styles
-  centeredToggleContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  uberSwitchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: 160,
-    height: 52,
-    borderRadius: 26,
-    paddingHorizontal: 8,
-    backgroundColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  uberSwitchOnline: {
-    backgroundColor: '#00b047',
-  },
-  uberSwitchOffline: {
-    backgroundColor: '#1e293b',
-  },
-  uberSwitchText: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 14,
-    letterSpacing: 1.2,
-    flex: 1,
-    textAlign: 'center',
-  },
-  uberSwitchKnob: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  onlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#00b047',
-  },
-  offlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#e11d48',
-  },
+  centeredToggleContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  uberSwitchContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: 160, height: 52, borderRadius: 26, paddingHorizontal: 8, backgroundColor: '#334155', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
+  uberSwitchOnline: { backgroundColor: '#00b047' },
+  uberSwitchOffline: { backgroundColor: '#1e293b' },
+  uberSwitchText: { color: '#ffffff', fontWeight: '900', fontSize: 14, letterSpacing: 1.2, flex: 1, textAlign: 'center' },
+  uberSwitchKnob: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
+  onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#00b047' },
+  offlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#e11d48' },
 
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-  },
-  modalContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  modalIconBox: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#1e293b',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  modalTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#ffffff',
-    marginBottom: 12,
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  modalButton: {
-    backgroundColor: '#00b047',
-    width: '100%',
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    shadowColor: '#00b047',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  modalButtonDisabled: {
-    backgroundColor: '#1e293b',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  modalButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
+  // Offline Modal styles
+  modalContainer: { flex: 1, backgroundColor: '#0f172a' },
+  modalContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
+  modalIconBox: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center', marginBottom: 32 },
+  modalTitle: { fontSize: 28, fontWeight: '900', color: '#ffffff', marginBottom: 12 },
+  modalSubtitle: { fontSize: 16, color: '#94a3b8', textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+  modalButton: { backgroundColor: '#00b047', width: '100%', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', shadowColor: '#00b047', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  modalButtonDisabled: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0 },
+  modalButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+
+  // Offer Overlay & Card styles
+  offerOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.85)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  offerAlertBox: { backgroundColor: '#ffffff', width: '100%', borderRadius: 24, padding: 24, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
+  pulseIconContainer: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  offerAlertTitle: { fontSize: 22, fontWeight: '900', color: '#0f172a', marginBottom: 8 },
+  offerAlertSubtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  offerCardPreview: { backgroundColor: '#f8fafc', width: '100%', borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: '#e2e8f0', marginBottom: 24 },
+  offerPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  offerTicketNum: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  offerTicketTitle: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 6 },
+  offerTicketCategory: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+  offerAcceptButton: { backgroundColor: '#00b047', flexDirection: 'row', width: '100%', height: 54, borderRadius: 14, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#00b047', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6 },
+  offerAcceptButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '800' },
 
   scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32 },
   metricsGrid: { marginBottom: 28 },

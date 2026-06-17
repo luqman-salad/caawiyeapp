@@ -1,21 +1,27 @@
-// src/utils/apis.ts
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
+// Define your development server IP here
+const DEV_IP = '10.144.22.213';
+const PORT = '8081';
+
 const getBaseURL = () => {
-  if (__DEV__) {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':').shift();
-      return `http://${ip}:8080/api/v1`;
-    }
-    return Platform.OS === 'android' 
-      ? 'http://10.0.2.2:8080/api/v1' 
-      : 'http://localhost:8080/api/v1';
-  }
+  // if (__DEV__) {
+  //   // 1. Try to use hostUri from Expo if available
+  //   const hostUri = Constants.expoConfig?.hostUri;
+  //   if (hostUri) {
+  //     const ip = hostUri.split(':').shift();
+  //     return `http://${ip}:${PORT}/api/v1`;
+  //   }
+    
+  //   // 2. Fallback to your hardcoded IP
+  //   return `http://${DEV_IP}:${PORT}/api/v1`;
+  // }
+  
+  // Production URL
   return 'https://fsm.kamacaash.com/api/v1';
 };
 
@@ -24,6 +30,7 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
+// ... (keep the rest of your interceptor code exactly as it is below this)
 let isRefreshing = false;
 let failedQueue: any[] = [];
 
@@ -38,14 +45,12 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to attach authentication token & device identifiers
 apiClient.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('userToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Attach device headers for sessions management
   const deviceId = await SecureStore.getItemAsync('deviceId');
   const deviceName = await SecureStore.getItemAsync('deviceName');
 
@@ -61,7 +66,6 @@ apiClient.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Response interceptor to intercept 401 errors and rotate refresh tokens
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -69,7 +73,6 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const backendCode = error.response?.data?.code;
 
-    // Force logout if session is dead/invalid on server
     if (status === 400 && (backendCode === 'SESSION_TERMINATED' || backendCode === 'INVALID_TOKEN_FORMAT' || backendCode === 'EXPIRED_TOKEN' || backendCode === 'UNAUTHORIZED_REFRESH')) {
       await SecureStore.deleteItemAsync('userToken');
       await SecureStore.deleteItemAsync('refreshToken');
@@ -97,7 +100,6 @@ apiClient.interceptors.response.use(
         const refreshToken = await SecureStore.getItemAsync('refreshToken');
         const deviceId = await SecureStore.getItemAsync('deviceId') || 'unknown_device';
 
-        // Call refresh API with clean instance to prevent circular interceptors
         const refreshResponse = await axios.post(
           `${getBaseURL()}/auth/refresh`,
           {
@@ -148,5 +150,7 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+// Add this line to src/utils/apis.ts
+console.log("DEBUG: Final Base URL:", getBaseURL());
 
 export default apiClient;
