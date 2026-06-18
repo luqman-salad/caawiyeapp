@@ -8,17 +8,17 @@ const DEV_IP = '10.144.22.213';
 const PORT = '8080';
 
 const getBaseURL = () => {
-  if (__DEV__) {
-    // 1. Try to use hostUri from Expo if available
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':').shift();
-      return `http://${ip}:${PORT}/api/v1`;
-    }
+  // if (__DEV__) {
+  //   // 1. Try to use hostUri from Expo if available
+  //   const hostUri = Constants.expoConfig?.hostUri;
+  //   if (hostUri) {
+  //     const ip = hostUri.split(':').shift();
+  //     return `http://${ip}:${PORT}/api/v1`;
+  //   }
 
-    // 2. Fallback to your hardcoded IP
-    return `http://${DEV_IP}:${PORT}/api/v1`;
-  }
+  //   // 2. Fallback to your hardcoded IP
+  //   return `http://${DEV_IP}:${PORT}/api/v1`;
+  // }
 
   // Production URL
   return 'https://fsm.kamacaash.com/api/v1';

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,16 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, usePathname } from 'expo-router'; // Modern SDK 56 Route hooks
 import * as Location from 'expo-location';
+import { useAudioPlayer, AudioModule } from 'expo-audio'; 
 import { getTechnicianTickets, getTechnicianProfile, updateTechnicianStatus } from '../../services/technicianService';
-
-let Audio: any = null;
-try {
-  Audio = require('expo-av').Audio;
-} catch (error) {
-  console.log("Audio native module not found, alarm loop disabled.");
-}
 
 export interface TechnicianTicket {
   id: string;
@@ -33,14 +27,37 @@ export interface TechnicianTicket {
   created_at: string;
 }
 
+// --- STATIC LOCAL AUDIO ASSET RESOLUTION ---
+const alarmSource = require('../../../assets/audio/taskAlarmSound.mp3');
+
+// Configure global audio session parameters to survive view stack transitions
+AudioModule.setAudioModeAsync({
+  playsInSilentMode: true,
+  interruptionModeAndroid: 'duckOthers', 
+});
+
 export default function Dashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [tasks, setTasks] = useState<TechnicianTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
-  const router = useRouter();
+  const [isFocused, setIsFocused] = useState(true); // Locally driven focus state
   
-  const soundRef = useRef<any>(null);
+  const router = useRouter();
+  const pathname = usePathname(); // Tracks route changes reactively
+
+  // --- INITIALIZE MODERN EXPO AUDIO PLAYER WITH LOCAL TRACK ---
+  const player = useAudioPlayer(alarmSource);
+
+  // --- NATIVE ROUTER FOCUS LIFE-CYCLE TRACKING ---
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => {
+        setIsFocused(false);
+      };
+    }, [])
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -78,54 +95,21 @@ export default function Dashboard() {
   const incomingOffer = tasks.find(task => task.status === 'AUTO_DISPATCHING');
   const hasPendingTask = !!incomingOffer;
 
+  // --- ALARM SOUND LIFECYCLE SYNC HOOK ---
   useEffect(() => {
-    let activeSound: any = null;
-    let isMounted = true;
-
-    const manageSound = async () => {
-      if (hasPendingTask && isOnline) {
-        if (!soundRef.current && Audio) {
-          try {
-            await Audio.setAudioModeAsync({
-              playsInSilentModeIOS: true,
-              staysActiveInBackground: true,
-            });
-            const { sound: newSound } = await Audio.Sound.createAsync(
-              { uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav' },
-              { shouldPlay: true, isLooping: true }
-            );
-            if (isMounted) {
-              activeSound = newSound;
-              soundRef.current = newSound;
-            } else {
-              await newSound.unloadAsync();
-            }
-          } catch (error) {
-            console.error("Failed to load sound", error);
-          }
-        }
-      } else {
-        if (soundRef.current) {
-          try {
-            await soundRef.current.stopAsync();
-            await soundRef.current.unloadAsync();
-          } catch (e) {
-            console.error("Failed to stop sound", e);
-          }
-          soundRef.current = null;
-        }
+    // Sound stays fully active until ticket status updates explicitly in backend
+    if (hasPendingTask && isOnline) {
+      player.loop = true;
+      player.volume = 1.0;
+      
+      if (!player.playing) {
+        player.play();
       }
-    };
-
-    manageSound();
-
-    return () => {
-      isMounted = false;
-      if (activeSound) {
-        activeSound.unloadAsync();
-      }
-    };
-  }, [hasPendingTask, isOnline]);
+    } else {
+      player.pause();
+    }
+  }, [hasPendingTask, isOnline, isFocused, pathname, player]); 
+  // Listens to focused states and pathname updates for flawless navigation handling
 
   const handleToggleStatus = async () => {
     if (toggling) return;
@@ -165,6 +149,9 @@ export default function Dashboard() {
       const res = await updateTechnicianStatus(nextStatus, lat, lon);
       if (res.success) {
         setIsOnline(nextStatus === 'ONLINE');
+        if (nextStatus === 'OFFLINE') {
+          player.pause(); 
+        }
         fetchData();
       }
     } catch (err) {
@@ -173,6 +160,13 @@ export default function Dashboard() {
     } finally {
       setToggling(false);
     }
+  };
+
+  const handleNavigateToOffer = (offerId: string) => {
+    router.push({
+      pathname: '/(technician)/taskDetail',
+      params: { id: offerId }
+    });
   };
 
   const getPriorityStyles = (priority: string) => {
@@ -245,14 +239,7 @@ export default function Dashboard() {
             <TouchableOpacity 
               style={styles.offerAcceptButton}
               activeOpacity={0.8}
-              onPress={() => {
-                if (incomingOffer) {
-                  router.push({
-                    pathname: '/(technician)/taskDetail',
-                    params: { id: incomingOffer.id }
-                  });
-                }
-              }}
+              onPress={() => incomingOffer && handleNavigateToOffer(incomingOffer.id)}
             >
               <Feather name="check-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
               <Text style={styles.offerAcceptButtonText}>View the Offer</Text>
@@ -362,7 +349,9 @@ export default function Dashboard() {
                   </View>
                 </View>
                 
-                <Text style={styles.taskTypeText}>{task.title}</Text>
+                <Text style={task.status === 'AUTO_DISPATCHING' ? [styles.taskTypeText, { fontWeight: '700', color: '#ef4444' }] : styles.taskTypeText}>
+                  {task.title}
+                </Text>
                 
                 <View style={styles.taskMetaRow}>
                   <View style={styles.timeRow}>
@@ -385,10 +374,7 @@ export default function Dashboard() {
                     task.status === 'AUTO_DISPATCHING' && { backgroundColor: '#ef4444' }
                   ]} 
                   activeOpacity={0.8} 
-                  onPress={() => router.push({
-                    pathname: '/(technician)/taskDetail',
-                    params: { id: task.id }
-                  })}
+                  onPress={() => handleNavigateToOffer(task.id)}
                 >
                   <Text style={styles.detailsButtonText}>
                     {task.status === 'AUTO_DISPATCHING' ? 'Review Urgent Offer →' : 'View Details →'}
@@ -420,7 +406,6 @@ const styles = StyleSheet.create({
   headerSubTitle: { fontSize: 13, fontWeight: '500', color: '#e2fbe9', marginTop: 1 },
   profileRightButton: { padding: 4 },
   
-  // Uber Switch styles
   centeredToggleContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   uberSwitchContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: 160, height: 52, borderRadius: 26, paddingHorizontal: 8, backgroundColor: '#334155', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
   uberSwitchOnline: { backgroundColor: '#00b047' },
@@ -430,7 +415,6 @@ const styles = StyleSheet.create({
   onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#00b047' },
   offlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#e11d48' },
 
-  // Offline Modal styles
   modalContainer: { flex: 1, backgroundColor: '#0f172a' },
   modalContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   modalIconBox: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center', marginBottom: 32 },
@@ -440,7 +424,6 @@ const styles = StyleSheet.create({
   modalButtonDisabled: { backgroundColor: '#1e293b', shadowOpacity: 0, elevation: 0 },
   modalButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 
-  // Offer Overlay & Card styles
   offerOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.85)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   offerAlertBox: { backgroundColor: '#ffffff', width: '100%', borderRadius: 24, padding: 24, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   pulseIconContainer: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
