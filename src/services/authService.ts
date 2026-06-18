@@ -49,7 +49,6 @@ function decodeJwtPayload(token: string): any {
 export const authService = {
   /**
    * Register a new customer
-   * Endpoint: POST /auth/signup
    */
   registerCustomer: async (payload: CustomerSignupPayload, device: DeviceHeaders) => {
     try {
@@ -68,26 +67,28 @@ export const authService = {
 
   /**
    * Request Login Verification Code via OTP
-   * Endpoint: POST /auth/login
+   * Added default value for actionType to prevent breaking other calls
    */
-  requestLoginOtp: async (phoneString: string) => {
+  requestLoginOtp: async (phoneString: string, actionType: "LOGIN" = "LOGIN") => {
     try {
       const payload: RequestLoginOtpPayload = {
         phone: phoneString.trim(),
-        action_type: "LOGIN",
+        action_type: actionType,
       };
+
+      console.log("Sending Login Payload:", JSON.stringify(payload));
 
       const response = await apiClient.post('/auth/login', payload);
       return response.data; 
     } catch (error: any) {
+      console.error("Login OTP Error Response:", error.response?.data);
       const backendMessage = error.response?.data?.message;
       throw new Error(backendMessage || 'Invalid phone number format or account does not exist.');
     }
   },
 
   /**
-   * Verify OTP and parse JWT response payload for role-based routing destination
-   * Endpoint: POST /auth/otp/verify
+   * Verify OTP and parse JWT response
    */
   verifyLoginOtp: async (phone: string, otp: string): Promise<VerificationResult> => {
     try {
@@ -97,36 +98,24 @@ export const authService = {
         action_type: "LOGIN",    
       });
       
-      // 1. Check for explicit success parameters from your Thunder Client response signature
       if (response.data?.success !== true) {
         throw new Error(response.data?.message || "Invalid verification security code.");
       }
 
-      // 2. Extract the access token STRICTLY from the data layout block
       const token = response.data?.data?.access_token;
       const refreshToken = response.data?.data?.refresh_token;
-      if (!token || typeof token !== 'string' || token.split('.').length !== 3) {
-        throw new Error("Authentication failed: Server did not return a valid access token.");
-      }
-
-      // 3. Decode the token structure securely
-      const payload = decodeJwtPayload(token);
-      if (!payload) {
-        throw new Error("Authentication failed: Invalid security token payload structure.");
-      }
       
-      // 4. Extract the role from the JWT claims safely
+      if (!token || typeof token !== 'string') {
+        throw new Error("Authentication failed: No valid access token received.");
+      }
+
+      const payload = decodeJwtPayload(token);
+      if (!payload) throw new Error("Authentication failed: Invalid token structure.");
+      
       const rawRole = payload.role || payload.user_role;
-      if (!rawRole) {
-        throw new Error("Authentication failed: User profile has no assigned security role.");
-      }
+      if (!rawRole) throw new Error("Authentication failed: No role assigned.");
 
-      // 5. Normalize casing and route explicitly
       const normalizedRole = rawRole.toUpperCase();
-      if (normalizedRole !== 'CUSTOMER' && normalizedRole !== 'TECHNICIAN') {
-        throw new Error(`Authentication failed: Unrecognized account role "${rawRole}".`);
-      }
-
       return {
         success: true,
         token: token,
@@ -134,18 +123,8 @@ export const authService = {
         role: normalizedRole === 'TECHNICIAN' ? 'technician' : 'customer'
       };
     } catch (error: any) {
-      // Pull error messaging dynamically out of the 400 Bad Request error packet
       const backendMessage = error.response?.data?.message;
-      const backendCode = error.response?.data?.code;
-      
-      let clientErrorMessage = "Invalid or expired verification code.";
-      if (backendMessage) {
-        clientErrorMessage = backendMessage;
-      } else if (error.message) {
-        clientErrorMessage = error.message;
-      }
-
-      throw new Error(clientErrorMessage);
+      throw new Error(backendMessage || "Invalid or expired verification code.");
     }
   }
 };

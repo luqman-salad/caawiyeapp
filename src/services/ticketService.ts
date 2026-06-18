@@ -35,10 +35,6 @@ export const startTicket = async (id: string) => {
   return response.data;
 };
 
-export const getTicketLogs = async (ticketId: string) => {
-  const response = await apiClient.get(`/tickets/${ticketId}/logs`);
-  return response.data;
-};
 
 
 export const completeTicket = async (id: string, otp: string, photoUri: string, note: string) => {
@@ -68,9 +64,14 @@ export const completeTicket = async (id: string, otp: string, photoUri: string, 
 
 
 
-export const reviewTicket = async (id: string) => {
-  // FIX: Added empty object '{}'
-  const response = await apiClient.post(`/tickets/${id}/review`, {});
+// src/services/ticketService.ts
+
+export const reviewTicket = async (
+  id: string,
+  reviewData: { rating: number; tags: string[]; comment: string }
+) => {
+  // Sends the exact payload format required by your Swagger docs
+  const response = await apiClient.post(`/tickets/${id}/review`, reviewData);
   return response.data;
 };
 

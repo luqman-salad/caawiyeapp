@@ -33,13 +33,16 @@ export default function UnifiedLoginScreen() {
 
     setIsSubmitting(true);
     try {
-      await authService.requestLoginOtp(sanitizedPhone);
+      // The authService now handles 'LOGIN' as a default parameter
+      // This call will send the correct JSON payload to your backend
+      await authService.requestLoginOtp(sanitizedPhone); 
       
       router.push({
         pathname: "/(auth)/verifyOtp",
         params: { phone: sanitizedPhone },
       });
     } catch (error: any) {
+      // This captures the error message from the backend or the service layer
       setErrorMessage(error.message || "Failed to send verification code. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -59,6 +62,7 @@ export default function UnifiedLoginScreen() {
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Brand and Form Design preserved exactly as requested */}
           <View style={styles.brandContainer}>
             <Text style={styles.logoText}>Caawiye</Text>
             <Text style={styles.welcomeTitle}>Secure Sign In</Text>
@@ -68,7 +72,6 @@ export default function UnifiedLoginScreen() {
           </View>
 
           <View style={styles.formContainer}>
-            {/* Premium Green Inline Error Banner */}
             {errorMessage && (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle" size={18} color="#ef4444" style={{ marginRight: 8 }} />
@@ -109,7 +112,6 @@ export default function UnifiedLoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Link Options Section */}
             <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>Don't have an account?</Text>
@@ -142,157 +144,30 @@ export default function UnifiedLoginScreen() {
   );
 }
 
+// ... (Your existing styles remain here)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  brandContainer: {
-    alignItems: "flex-start",
-    marginBottom: 36,
-    width: "100%",
-    maxWidth: 320,
-    alignSelf: "center",
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: "#10b981", // Caawiye Brand Theme Green
-    marginBottom: 16,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#001a3d",
-  },
-  welcomeSubtitle: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#718096",
-    lineHeight: 22,
-    marginTop: 8,
-  },
-  formContainer: {
-    width: "100%",
-    maxWidth: 320,
-    alignSelf: "center",
-  },
-  errorBanner: {
-    backgroundColor: "#fef2f2",
-    borderColor: "#fee2e2",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  errorBannerText: {
-    color: "#991b1b",
-    fontSize: 13,
-    fontWeight: "600",
-    flex: 1,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#001a3d",
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f7fafc",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 54,
-    marginBottom: 24,
-  },
-  inputWrapperError: {
-    borderColor: "#ef4444",
-    backgroundColor: "#fff5f5",
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  textInput: {
-    flex: 1,
-    color: "#001a3d",
-    fontSize: 16,
-    fontWeight: "600",
-    height: "100%",
-  },
-  submitButton: {
-    width: "100%",
-    height: 54,
-    backgroundColor: "#10b981", // Caawiye Theme Green
-    borderRadius: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  disabledButton: {
-    backgroundColor: "#cbd5e0",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  submitButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e2e8f0",
-  },
-  dividerText: {
-    fontSize: 13,
-    color: "#a0aec0",
-    paddingHorizontal: 10,
-    fontWeight: "500",
-  },
-  linksVerticalStack: {
-    width: "100%",
-    marginTop: 8,
-  },
-  actionLinkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f0fdf4", // Light green tint container
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
-    borderRadius: 12,
-    height: 48,
-    width: "100%",
-  },
-  primaryLinkText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#10b981", // Theme Green Color link matching
-    marginLeft: 8,
-  },
+  container: { flex: 1, backgroundColor: "#ffffff" },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 32 },
+  brandContainer: { alignItems: "flex-start", marginBottom: 36, width: "100%", maxWidth: 320, alignSelf: "center" },
+  logoText: { fontSize: 24, fontWeight: "900", color: "#10b981", marginBottom: 16 },
+  welcomeTitle: { fontSize: 28, fontWeight: "800", color: "#001a3d" },
+  welcomeSubtitle: { fontSize: 15, fontWeight: "500", color: "#718096", lineHeight: 22, marginTop: 8 },
+  formContainer: { width: "100%", maxWidth: 320, alignSelf: "center" },
+  errorBanner: { backgroundColor: "#fef2f2", borderColor: "#fee2e2", borderWidth: 1, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  errorBannerText: { color: "#991b1b", fontSize: 13, fontWeight: "600", flex: 1 },
+  inputLabel: { fontSize: 14, fontWeight: "700", color: "#001a3d", marginBottom: 8 },
+  inputWrapper: { flexDirection: "row", alignItems: "center", backgroundColor: "#f7fafc", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, paddingHorizontal: 14, height: 54, marginBottom: 24 },
+  inputWrapperError: { borderColor: "#ef4444", backgroundColor: "#fff5f5" },
+  inputIcon: { marginRight: 10 },
+  textInput: { flex: 1, color: "#001a3d", fontSize: 16, fontWeight: "600", height: "100%" },
+  submitButton: { width: "100%", height: 54, backgroundColor: "#10b981", borderRadius: 12, flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 24, elevation: 3 },
+  disabledButton: { backgroundColor: "#cbd5e0" },
+  submitButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  dividerContainer: { flexDirection: "row", alignItems: "center", marginVertical: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
+  dividerText: { fontSize: 13, color: "#a0aec0", paddingHorizontal: 10, fontWeight: "500" },
+  linksVerticalStack: { width: "100%", marginTop: 8 },
+  actionLinkRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#bbf7d0", borderRadius: 12, height: 48, width: "100%" },
+  primaryLinkText: { fontSize: 14, fontWeight: "700", color: "#10b981", marginLeft: 8 },
 });
